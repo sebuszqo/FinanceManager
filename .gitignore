@@ -24,3 +24,5 @@ go.work.sum
 # env file
 .env
 ./tabels
+./db_password.txt
+./db_user.txt
