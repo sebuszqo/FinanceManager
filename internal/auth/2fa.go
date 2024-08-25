@@ -8,11 +8,12 @@ import (
 
 type Authenticator struct{}
 
+// GenerateSecret Use SHA1 to google authenticator compatibility
 func (g *Authenticator) GenerateSecret(userID string) (string, string, error) {
 	secret, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      "FinanceManager",
 		AccountName: userID,
-		Algorithm:   otp.AlgorithmSHA512,
+		Algorithm:   otp.AlgorithmSHA1,
 	})
 	if err != nil {
 		log.Println("Error during totp secret generation: ", err)
@@ -29,10 +30,10 @@ func (g *Authenticator) GenerateCode(secret string) (string, error) {
 	return "", nil
 }
 
-func (g *Authenticator) VerifyCode(secret, code string) (bool, error) {
+func (g *Authenticator) VerifyCode(secret, code string) bool {
 	valid := totp.Validate(code, secret)
 	if !valid {
-		return false, ErrInvalid2FACode
+		return false
 	}
-	return true, nil
+	return true
 }
