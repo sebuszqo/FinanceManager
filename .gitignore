@@ -30,3 +30,7 @@ go.work.sum
 *.sql
 *.iml
 internal/email/client_credentials.json
+.air.toml
+.env.docker
+build-errors.log
+finance_manager
