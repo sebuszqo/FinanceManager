@@ -15,6 +15,20 @@ services:
     networks:
       - finance_network
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finance_manager_app
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - finance_network
+
 secrets:
   db_password:
     file: db_password.txt
