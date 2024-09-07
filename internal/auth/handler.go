@@ -50,7 +50,7 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, sessionTokenOrJWT, refreshToken, err := s.authService.Login(req.EmailOrLogin, req.Password)
+	existingUser, sessionTokenOrJWT, refreshToken, err := s.authService.Login(req.EmailOrLogin, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
 			respondError(w, http.StatusUnauthorized, "Invalid credentials")
@@ -85,7 +85,7 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			"status": "success",
 			"data": map[string]string{
 				"message":         "Two-factor authentication required",
-				"2fa_auth_method": user.TwoFactorMethod,
+				"2fa_auth_method": existingUser.TwoFactorMethod,
 				"session_token":   sessionTokenOrJWT,
 			},
 		})
@@ -188,7 +188,7 @@ func (s *Handler) HandleVerifyTwoFactor(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, jwtToken, refreshToken, err := s.authService.VerifyTwoFactor(req.SessionToken, req.Code)
+	existingUser, jwtToken, refreshToken, err := s.authService.VerifyTwoFactor(req.SessionToken, req.Code)
 	if err != nil {
 		if errors.Is(err, ErrInvalidSessionToken) || errors.Is(err, ErrInvalid2FACode) || errors.Is(err, InvalidCodeType) {
 			respondError(w, http.StatusUnauthorized, err.Error())
@@ -201,7 +201,7 @@ func (s *Handler) HandleVerifyTwoFactor(w http.ResponseWriter, r *http.Request) 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"data": map[string]string{
-			"user_id":       user.ID,
+			"user_id":       existingUser.ID,
 			"access_token":  jwtToken,
 			"refresh_token": refreshToken,
 		},
@@ -303,7 +303,10 @@ func (s *Handler) RequestPasswordResetHandler(w http.ResponseWriter, r *http.Req
 		respondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-
+	if request.Email == "" {
+		respondError(w, http.StatusBadRequest, "Email/Login and Password are required")
+		return
+	}
 	err = s.authService.RequestPasswordReset(request.Email)
 	if err != nil {
 		switch {
