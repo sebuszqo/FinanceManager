@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -14,7 +13,7 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *authService) JWTAccessTokenMiddleware() func(http.Handler) http.Handler {
+func (s *service) JWTAccessTokenMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -35,13 +34,12 @@ func (s *authService) JWTAccessTokenMiddleware() func(http.Handler) http.Handler
 				return
 			}
 
-			_, err = s.repo.GetUserByID(userID)
+			_, err = s.userService.GetUserByID(userID)
 			if err != nil {
 				if errors.Is(err, ErrUserNotFound) {
 					writeJSONError(w, http.StatusUnauthorized, ErrUserNotFound.Error())
 					return
 				} else {
-					fmt.Println("TU ZWRACAM?")
 					writeJSONError(w, http.StatusInternalServerError, ErrInternalError.Error())
 					return
 				}
@@ -53,7 +51,7 @@ func (s *authService) JWTAccessTokenMiddleware() func(http.Handler) http.Handler
 	}
 }
 
-func (s *authService) JWTRefreshTokenMiddleware() func(http.Handler) http.Handler {
+func (s *service) JWTRefreshTokenMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Validate the Authorization header
@@ -80,7 +78,7 @@ func (s *authService) JWTRefreshTokenMiddleware() func(http.Handler) http.Handle
 				return
 			}
 
-			existingUser, err := s.repo.GetUserByID(userID)
+			existingUser, err := s.userService.GetUserByID(userID)
 			if err != nil {
 				if errors.Is(err, ErrUserNotFound) {
 					writeJSONError(w, http.StatusUnauthorized, ErrUserNotFound.Error())
