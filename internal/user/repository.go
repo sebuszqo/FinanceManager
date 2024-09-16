@@ -19,11 +19,12 @@ type Repository interface {
 	userExistsByLoginOrEmail(login, email string) (*User, error)
 	getUserByLoginOrEmail(loginOrEmail string) (*User, error)
 	getUserByID(id string) (*User, error)
-	saveEmailVerificationCode(userID string, code string, expiresAt time.Time, codeType string) error
+	saveEmailVerificationCode(userID string, code string, expiresAt time.Time, codeType, newEmail string) error
 	updateEmailVerified(userID string, verified bool) error
-	getEmailVerificationCode(userID string) (string, string, time.Time, time.Time, error)
+	getEmailVerificationCode(userID string) (string, string, string, time.Time, time.Time, error)
 	deleteEmailTwoFactorCode(userID string) error
 	updateUserPasswordAndHashToken(userID, newPasswordHash, newHashToken string) error
+	updateEmail(userID, email string) error
 }
 
 type userRepository struct {
@@ -147,14 +148,14 @@ func (r *userRepository) getUserByID(id string) (*User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) saveEmailVerificationCode(userID string, code string, expiresAt time.Time, codeType string) error {
+func (r *userRepository) saveEmailVerificationCode(userID string, code string, expiresAt time.Time, codeType, newEmail string) error {
 	query := `
-        INSERT INTO user_email_verification_codes (user_id, code, expires_at, type)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO user_email_verification_codes (user_id, code, expires_at, type, new_email)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (user_id) DO UPDATE
-        SET code = $2, expires_at = $3, created_at = CURRENT_TIMESTAMP
+        SET code = $2, expires_at = $3, created_at = CURRENT_TIMESTAMP, new_email = $5
     `
-	_, err := r.db.Exec(query, userID, code, expiresAt, codeType)
+	_, err := r.db.Exec(query, userID, code, expiresAt, codeType, newEmail)
 	if err != nil {
 		return fmt.Errorf("could not save verification code: %v", err)
 	}
@@ -174,26 +175,27 @@ func (r *userRepository) updateEmailVerified(userID string, verified bool) error
 	return nil
 }
 
-func (r *userRepository) getEmailVerificationCode(userID string) (string, string, time.Time, time.Time, error) {
+func (r *userRepository) getEmailVerificationCode(userID string) (string, string, string, time.Time, time.Time, error) {
 	query := `
-        SELECT code, expires_at, created_at, type
+        SELECT code,type, new_email, expires_at, created_at 
         FROM user_email_verification_codes
         WHERE user_id = $1
     `
 
 	var code string
 	var codeType string
+	var newEmail string
 	var expiresAt time.Time
 	var createdAt time.Time
-	err := r.db.QueryRow(query, userID).Scan(&code, &expiresAt, &createdAt, &codeType)
+	err := r.db.QueryRow(query, userID).Scan(&code, &codeType, &newEmail, &expiresAt, &createdAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", time.Time{}, time.Time{}, ErrNoTwoFactorCodeGenerated
+			return "", "", "", time.Time{}, time.Time{}, ErrNoTwoFactorCodeGenerated
 		}
-		return "", "", time.Time{}, time.Time{}, fmt.Errorf("could not retrieve verification code: %v", err)
+		return "", "", "", time.Time{}, time.Time{}, fmt.Errorf("could not retrieve verification code: %v", err)
 	}
 
-	return code, codeType, expiresAt, createdAt, nil
+	return code, codeType, newEmail, expiresAt, createdAt, nil
 }
 
 func (r *userRepository) deleteEmailTwoFactorCode(userID string) error {
@@ -218,4 +220,15 @@ func (r *userRepository) updateUserPasswordAndHashToken(userID, newPasswordHash,
     `
 	_, err := r.db.Exec(query, newPasswordHash, newHashToken, time.Now(), userID)
 	return err
+}
+
+func (r *userRepository) updateEmail(userID, email string) error {
+	query := `
+        UPDATE users SET email = $2, updated_at = NOW() WHERE id = $1
+    `
+	_, err := r.db.Exec(query, userID, email)
+	if err != nil {
+		return ErrInternalError
+	}
+	return nil
 }
