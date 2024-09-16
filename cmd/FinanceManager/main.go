@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/joho/godotenv"
+
 	"github.com/sebuszqo/FinanceManager/internal/auth"
 	database "github.com/sebuszqo/FinanceManager/internal/db"
 	emailService "github.com/sebuszqo/FinanceManager/internal/email"
@@ -16,15 +17,6 @@ import (
 
 type Response struct {
 	Message string `json:"message"`
-}
-
-func jsonResponse(w http.ResponseWriter, statusCode int, response Response) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	err := json.NewEncoder(w).Encode(response)
-	if err != nil {
-		return
-	}
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -67,7 +59,7 @@ func checkConfiguration() error {
 	return nil
 }
 
-func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleReady(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
@@ -88,6 +80,13 @@ func (s *Server) RegisterRoutes() {
 
 	// Protected routes (using JWT Access Token Middleware)
 	protectedRoutes := http.NewServeMux()
+	// email changes request and confirm endpoint
+	protectedRoutes.Handle("POST /api/protected/email/change-request", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleRequestEmailChange)))
+	protectedRoutes.Handle("POST /api/protected/email/change-confirm", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleConfirmEmailChange)))
+
+	// get user data endpoint
+	protectedRoutes.Handle("GET /api/protected/profile", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleGetUserProfile)))
+
 	protectedRoutes.Handle("POST /api/protected/2fa/register", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRegisterTwoFactor)))
 	protectedRoutes.Handle("POST /api/protected/2fa/verify-registration", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleVerifyTwoFactorCode)))
 	protectedRoutes.Handle("POST /api/protected/2fa/request-email-code", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRequestEmail2FACode)))
