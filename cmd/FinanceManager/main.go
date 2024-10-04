@@ -47,6 +47,12 @@ func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler 
 	}
 }
 
+func notFoundHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(Response{Message: "Path not found"})
+}
+
 func checkConfiguration() error {
 	err := godotenv.Load()
 	if err != nil {
@@ -104,6 +110,7 @@ func (s *Server) RegisterRoutes() {
 	mainRouter.Handle("/api/", publicRoutes)
 	mainRouter.Handle("/api/protected/", protectedRoutes)
 	mainRouter.Handle("/api/refresh/", refreshTokenRoutes)
+	mainRouter.Handle("/", http.HandlerFunc(notFoundHandler))
 
 	s.router = mainRouter
 }
