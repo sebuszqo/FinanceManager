@@ -21,7 +21,7 @@ cd FinanceManager
 
 You will need to create two files: db_user.txt and db_password.txt. These files will store the database username and password, which will be used by Docker to create the database.
 
-### 3. Prepare the .env.docker file
+### 3. Prepare the .env.docker, db_user.txt, db_password.txt files 
 The .env.docker file should include all the environment variables required by your Go application, such as database credentials, host configuration, etc. Here’s an example of a basic .env file:
 ```bash
 DB_CONNECTION_STRING=host=localhost user=<your_user> password=<password> dbname=<dbname> sslmode=disable
@@ -30,7 +30,18 @@ EMAIL_PASSWORD=<email_passoword>
 TEMPLATES_DIR=<path to: FinanceManager/internal/email/templates>
 EMAIL_ADDRESS=<email_address_configured_with_google_SMTP>
 ```
-Make sure the .env file is in the same directory as your docker-compose.yml and Dockerfile.
+Make sure the .env.docker file is in the same directory as your docker-compose.yml and Dockerfile.
+
+Prepare `db_user.txt`, by adding db user to file:
+```bash
+  db_user
+```
+
+
+Prepare `db_password.txt`, by adding db password to file:
+```bash
+  db_password
+```
 
 ### 4. Build and run the Docker containers
 Now, run the following command to build and start the containers defined in the docker-compose.yml file:
