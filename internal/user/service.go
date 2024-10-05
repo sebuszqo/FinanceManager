@@ -117,14 +117,6 @@ func validateEmailAddress(email string) error {
 		return ErrInvalidEmail
 	}
 
-	err = checkmail.ValidateHost(email)
-	if err != nil {
-		if !strings.Contains("timeout", err.Error()) {
-			fmt.Println("Email Validation HOST check error", err)
-			return ErrInvalidEmail
-		}
-		fmt.Println("Timeout continuing without host check ...")
-	}
 	if len(email) > maxEmailLength || len(email) <= minEmailLength {
 		fmt.Println("Email Validation length check error")
 		return ErrEmailLength

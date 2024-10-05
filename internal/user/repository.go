@@ -55,7 +55,7 @@ func (r *userRepository) createUser(user *User) error {
 
 func (r *userRepository) getUserByEmail(email string) (*User, error) {
 	query := `
-		SELECT id, email, login, password_hash, two_factor_enabled, is_verified, two_factor_method, hash_token, created_at, updated_at
+		SELECT id, email, login, password_hash, two_factor_enabled, is_active, two_factor_method, hash_token, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -74,7 +74,7 @@ func (r *userRepository) getUserByEmail(email string) (*User, error) {
 
 func (r *userRepository) getUserByLogin(login string) (*User, error) {
 	query := `
-		SELECT id, email, login, password_hash, two_factor_enabled, is_verified, two_factor_method, hash_token, created_at, updated_at
+		SELECT id, email, login, password_hash, two_factor_enabled, is_active, two_factor_method, hash_token, created_at, updated_at
 		FROM users
 		WHERE login = $1
 	`
@@ -93,7 +93,7 @@ func (r *userRepository) getUserByLogin(login string) (*User, error) {
 
 func (r *userRepository) userExistsByLoginOrEmail(login, email string) (*User, error) {
 	query := `
-		SELECT id, email, login, password_hash, is_verified, two_factor_enabled, two_factor_method, hash_token, created_at, updated_at
+		SELECT id, email, login, password_hash, is_active, two_factor_enabled, two_factor_method, hash_token, created_at, updated_at
 		FROM users
 		WHERE login = $1 OR email = $2
 	`
@@ -112,7 +112,7 @@ func (r *userRepository) userExistsByLoginOrEmail(login, email string) (*User, e
 
 func (r *userRepository) getUserByLoginOrEmail(loginOrEmail string) (*User, error) {
 	query := `
-		SELECT id, email, login, password_hash, is_verified, two_factor_enabled, two_factor_method, hash_token, created_at, updated_at
+		SELECT id, email, login, password_hash, is_active, two_factor_enabled, two_factor_method, hash_token, created_at, updated_at
 		FROM users
 		WHERE login = $1 OR email = $1
 	`
@@ -131,7 +131,7 @@ func (r *userRepository) getUserByLoginOrEmail(loginOrEmail string) (*User, erro
 
 func (r *userRepository) getUserByID(id string) (*User, error) {
 	query := `
-		SELECT id, email, login, password_hash, is_verified, two_factor_enabled, two_factor_method, hash_token, created_at, updated_at
+		SELECT id, email, login, password_hash, is_active, two_factor_enabled, two_factor_method, hash_token, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -165,7 +165,7 @@ func (r *userRepository) saveEmailVerificationCode(userID string, code string, e
 func (r *userRepository) updateEmailVerified(userID string, verified bool) error {
 	query := `
         UPDATE users
-        SET is_verified = $2
+        SET is_active = $2
         WHERE id = $1
     `
 	_, err := r.db.Exec(query, userID, verified)
