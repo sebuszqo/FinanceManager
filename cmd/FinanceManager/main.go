@@ -96,12 +96,12 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("POST /api/protected/2fa/register", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRegisterTwoFactor)))
 	protectedRoutes.Handle("POST /api/protected/2fa/verify-registration", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleVerifyTwoFactorCode)))
 	protectedRoutes.Handle("POST /api/protected/2fa/request-email-code", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRequestEmail2FACode)))
-	protectedRoutes.Handle("POST /api/protected/2fa/disable", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleDisableTwoFactor)))
+	protectedRoutes.Handle("DELETE /api/protected/2fa/disable", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleDisableTwoFactor)))
 	protectedRoutes.Handle("POST /api/protected/change-password", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleChangePassword)))
 
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
-	refreshTokenRoutes.Handle("POST /api/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
+	refreshTokenRoutes.Handle("PUT /api/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
 
 	// Main router
 	mainRouter := http.NewServeMux()

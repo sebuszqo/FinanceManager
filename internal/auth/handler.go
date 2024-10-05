@@ -32,11 +32,12 @@ func respondError(w http.ResponseWriter, status int, message string) {
 	})
 }
 
-func checkRequestMethod(requestMethod, method string, w http.ResponseWriter) {
+func checkRequestMethod(requestMethod, method string, w http.ResponseWriter) bool {
 	if requestMethod != method {
 		respondError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
+		return false
 	}
+	return true
 }
 
 func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +234,9 @@ func (s *Handler) HandleRequestEmail2FACode(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Handler) HandleDisableTwoFactor(w http.ResponseWriter, r *http.Request) {
-	checkRequestMethod(r.Method, http.MethodPost, w)
+	if !checkRequestMethod(r.Method, http.MethodDelete, w) {
+		return
+	}
 	var req struct {
 		Method string `json:"method"`
 		Code   string `json:"code"`
