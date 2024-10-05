@@ -1,17 +1,25 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:13
     container_name: finance_manager_db
     environment:
-      POSTGRES_USER: /run/secrets/db_user
-      POSTGRES_PASSWORD: /run/secrets/db_password
       POSTGRES_DB: finance_db
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    entrypoint: |
+      /bin/sh -c "
+      export POSTGRES_USER=$(cat /run/secrets/db_user);
+      export POSTGRES_PASSWORD=$(cat /run/secrets/db_password);
+      exec docker-entrypoint.sh postgres"
     networks:
       - finance_network
+    secrets:
+      - db_user
+      - db_password
 
   app:
     build:
