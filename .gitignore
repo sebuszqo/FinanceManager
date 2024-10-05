@@ -23,7 +23,8 @@ go.work.sum
 .idea
 # env file
 .env
-./tabels
+sql/*
+!sql/01_create_all_tables.sql
 /db_user.txt
 /db_password.txt
 *.xml
