@@ -45,8 +45,11 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		EmailOrLogin string `json:"email_or_login"`
 		Password     string `json:"password"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	if req.Password == "" || req.EmailOrLogin == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -107,7 +110,8 @@ func (s *Handler) HandleRegisterTwoFactor(w http.ResponseWriter, r *http.Request
 		Method string `json:"method"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Method == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -145,12 +149,13 @@ func (s *Handler) HandleVerifyTwoFactorCode(w http.ResponseWriter, r *http.Reque
 		Code   string `json:"code"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Method == "" || req.Code == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	userID := r.Context().Value("userID").(string)
-	err := s.authService.VerifyTwoFactorCode(userID, req.Method, req.Code)
+	err = s.authService.VerifyTwoFactorCode(userID, req.Method, req.Code)
 	if err != nil {
 		fmt.Println(err.Error())
 		if errors.Is(err, ErrInvalid2FACode) {
@@ -184,7 +189,8 @@ func (s *Handler) HandleVerifyTwoFactor(w http.ResponseWriter, r *http.Request) 
 		Code         string `json:"code"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.SessionToken == "" || req.Code == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -241,7 +247,8 @@ func (s *Handler) HandleDisableTwoFactor(w http.ResponseWriter, r *http.Request)
 		Method string `json:"method"`
 		Code   string `json:"code"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Method == "" || req.Code == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -252,7 +259,7 @@ func (s *Handler) HandleDisableTwoFactor(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := s.authService.DisableTwoFactorAuth(userID, req.Method, req.Code)
+	err = s.authService.DisableTwoFactorAuth(userID, req.Method, req.Code)
 	if err != nil {
 		if errors.Is(err, ErrInvalidTwoFactorMethod) {
 			respondError(w, http.StatusBadRequest, "Invalid two-factor method")
@@ -298,19 +305,19 @@ func (s *Handler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handler) RequestPasswordResetHandler(w http.ResponseWriter, r *http.Request) {
-	var request struct {
+	var req struct {
 		Email string `json:"email"`
 	}
-	err := json.NewDecoder(r.Body).Decode(&request)
-	if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Email == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	if request.Email == "" {
+	if req.Email == "" {
 		respondError(w, http.StatusBadRequest, "Email/Login and Password are required")
 		return
 	}
-	err = s.authService.RequestPasswordReset(request.Email)
+	err = s.authService.RequestPasswordReset(req.Email)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrUserNotFound):
@@ -329,19 +336,19 @@ func (s *Handler) RequestPasswordResetHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Handler) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
-	var request struct {
+	var req struct {
 		Email       string `json:"email"`
 		Code        string `json:"code"`
 		NewPassword string `json:"new_password"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&request)
-	if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Code == "" || req.NewPassword == "" || req.Email == "" {
 		respondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	err = s.authService.ResetPassword(request.Email, request.Code, request.NewPassword)
+	err = s.authService.ResetPassword(req.Email, req.Code, req.NewPassword)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrUserNotFound):
