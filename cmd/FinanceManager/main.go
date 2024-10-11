@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/joho/godotenv"
+	investments "github.com/sebuszqo/FinanceManager/internal/investment"
+	portfolios "github.com/sebuszqo/FinanceManager/internal/investment/portfolio"
 
 	"github.com/sebuszqo/FinanceManager/internal/auth"
 	database "github.com/sebuszqo/FinanceManager/internal/db"
@@ -30,20 +32,36 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-type Server struct {
-	router      *http.ServeMux
-	authHandler *auth.Handler
-	userHandler *user.Handler
-	authService auth.Service
-	userService user.Service
+func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(payload)
 }
 
-func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler) *Server {
+func respondError(w http.ResponseWriter, status int, message string) {
+	respondJSON(w, status, map[string]interface{}{
+		"status":  "error",
+		"message": message,
+		"code":    status,
+	})
+}
+
+type Server struct {
+	router             *http.ServeMux
+	authHandler        *auth.Handler
+	userHandler        *user.Handler
+	authService        auth.Service
+	userService        user.Service
+	investmentsHandler *investments.InvestmentHandler
+}
+
+func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler) *Server {
 	return &Server{
-		authHandler: authHandler,
-		userHandler: userHandler,
-		authService: authService,
-		router:      http.NewServeMux(),
+		authHandler:        authHandler,
+		userHandler:        userHandler,
+		investmentsHandler: investmentHandler,
+		authService:        authService,
+		router:             http.NewServeMux(),
 	}
 }
 
@@ -93,11 +111,35 @@ func (s *Server) RegisterRoutes() {
 	// get user data endpoint
 	protectedRoutes.Handle("GET /api/protected/profile", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleGetUserProfile)))
 
-	protectedRoutes.Handle("POST /api/protected/2fa/register", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRegisterTwoFactor)))
-	protectedRoutes.Handle("POST /api/protected/2fa/verify-registration", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleVerifyTwoFactorCode)))
-	protectedRoutes.Handle("POST /api/protected/2fa/request-email-code", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRequestEmail2FACode)))
-	protectedRoutes.Handle("DELETE /api/protected/2fa/disable", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleDisableTwoFactor)))
-	protectedRoutes.Handle("POST /api/protected/change-password", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleChangePassword)))
+	protectedRoutes.Handle("POST /api/protected/2fa/register",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRegisterTwoFactor)))
+
+	protectedRoutes.Handle("POST /api/protected/2fa/verify-registration",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleVerifyTwoFactorCode)))
+
+	protectedRoutes.Handle("POST /api/protected/2fa/request-email-code",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRequestEmail2FACode)))
+
+	protectedRoutes.Handle("DELETE /api/protected/2fa/disable",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleDisableTwoFactor)))
+
+	protectedRoutes.Handle("POST /api/protected/change-password",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleChangePassword)))
+
+	protectedRoutes.Handle("POST /api/protected/portfolios",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.CreatePortfolio)))
+
+	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidatePortfolioIDMiddleware(http.HandlerFunc(s.investmentsHandler.GetPortfolio))))
+
+	protectedRoutes.Handle("PUT /api/protected/portfolios/{portfolioID}",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidatePortfolioIDMiddleware(http.HandlerFunc(s.investmentsHandler.UpdatePortfolio))))
+
+	protectedRoutes.Handle("DELETE /api/protected/portfolios/{portfolioID}",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidatePortfolioIDMiddleware(http.HandlerFunc(s.investmentsHandler.DeletePortfolio))))
+
+	protectedRoutes.Handle("GET /api/protected/portfolios",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetAllPortfolios)))
 
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
@@ -139,7 +181,10 @@ func main() {
 	authService := auth.NewAuthService(authRepo, userService, sessionManager, jwtManager, newEmailService, authenticator)
 	authHandler := auth.NewHandler(authService)
 
-	server := NewServer(authHandler, authService, userHandler)
+	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
+	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
+	investmentsHandler := investments.NewInvestmentHandler(portfolioService, respondJSON, respondError)
+	server := NewServer(authHandler, authService, userHandler, investmentsHandler)
 
 	server.RegisterRoutes()
 
