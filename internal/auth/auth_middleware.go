@@ -55,18 +55,13 @@ func (s *service) JWTRefreshTokenMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Validate the Authorization header
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				writeJSONError(w, http.StatusUnauthorized, "Authorization header is required")
+			// Migrated from Auth headers for refresh_token to http-only cookie
+			cookie, err := r.Cookie("refresh_token")
+			if err != nil {
+				writeJSONError(w, http.StatusUnauthorized, "Refresh token is required")
 				return
 			}
-
-			// Extract the token from the header
-			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-			if tokenString == authHeader {
-				writeJSONError(w, http.StatusUnauthorized, "Invalid token format")
-				return
-			}
+			tokenString := cookie.Value
 
 			userID, err := s.jwtManager.ExtractUserIDFromRefreshToken(tokenString)
 			if err != nil {
