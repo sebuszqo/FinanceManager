@@ -96,11 +96,20 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteNoneMode,
+		Path:     "/api/refresh/token",
+		// Optional: Domain: "yourdomain.com",
+	})
+
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"data": map[string]string{
-			"access_token":  sessionTokenOrJWT,
-			"refresh_token": refreshToken,
+			"access_token": sessionTokenOrJWT,
 		},
 	})
 }
@@ -290,16 +299,26 @@ func (s *Handler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusUnauthorized, ErrUserNotFound.Error())
 	}
 
-	accessToken, refreshToken, err := s.authService.RefreshAccessToken(userID)
+	accessToken, newRefreshToken, err := s.authService.RefreshAccessToken(userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, ErrInternalError.Error())
 		return
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    newRefreshToken,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteNoneMode,
+		Path:     "/api/refresh/token",
+		// Opcjonalnie: Domain: "yourdomain.com",
+	})
+
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"data": map[string]string{
-			"session_token": accessToken,
-			"refresh_token": refreshToken,
+			"access_token": accessToken,
 		},
 	})
 }
