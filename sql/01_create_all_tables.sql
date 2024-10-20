@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS assets (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_assets_portfolio_id ON assets(portfolio_id);
+
 INSERT INTO asset_types (type) VALUES ('Stock');
 INSERT INTO asset_types (type) VALUES ('Bond');
 INSERT INTO asset_types (type) VALUES ('ETF');
@@ -85,6 +87,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_transactions_asset_id ON transactions(asset_id);
+
 INSERT INTO transaction_types (type) VALUES ('Buy');
 INSERT INTO transaction_types (type) VALUES ('Sell');
 INSERT INTO transaction_types (type) VALUES ('Dividend');
@@ -94,4 +98,5 @@ INSERT INTO transaction_types (type) VALUES ('Interest Payment');
 INSERT INTO transaction_types (type) VALUES ('Reinvestment');
 INSERT INTO transaction_types (type) VALUES ('Fee');
 
-
+ALTER TABLE assets
+    ADD CONSTRAINT unique_asset_per_portfolio UNIQUE (portfolio_id, name);
