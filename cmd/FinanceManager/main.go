@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/joho/godotenv"
 	investments "github.com/sebuszqo/FinanceManager/internal/investment"
+	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
 	portfolios "github.com/sebuszqo/FinanceManager/internal/investment/portfolio"
 
 	"github.com/sebuszqo/FinanceManager/internal/auth"
@@ -126,20 +127,44 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("POST /api/protected/change-password",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleChangePassword)))
 
+	// PORTFOLIOS API
 	protectedRoutes.Handle("POST /api/protected/portfolios",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.CreatePortfolio)))
 
 	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}",
-		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidatePortfolioIDMiddleware(http.HandlerFunc(s.investmentsHandler.GetPortfolio))))
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetPortfolio), "portfolioID")))
 
 	protectedRoutes.Handle("PUT /api/protected/portfolios/{portfolioID}",
-		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidatePortfolioIDMiddleware(http.HandlerFunc(s.investmentsHandler.UpdatePortfolio))))
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.UpdatePortfolio), "portfolioID")))
 
 	protectedRoutes.Handle("DELETE /api/protected/portfolios/{portfolioID}",
-		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidatePortfolioIDMiddleware(http.HandlerFunc(s.investmentsHandler.DeletePortfolio))))
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.DeletePortfolio), "portfolioID")))
 
 	protectedRoutes.Handle("GET /api/protected/portfolios",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetAllPortfolios)))
+
+	// ASSET API
+	protectedRoutes.Handle("GET /api/protected/asset_types",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetAssetTypes)))
+
+	protectedRoutes.Handle("DELETE /api/protected/portfolios/{portfolioID}/assets/{assetID}",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.DeleteAsset), "portfolioID", "assetID")))
+
+	protectedRoutes.Handle("POST /api/protected/portfolios/{portfolioID}/assets",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.CreateAsset), "portfolioID")))
+
+	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}/assets",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetAllAssets), "portfolioID")))
+
+	//"GET /api/protected/portfolios/{portfolioID}/assets/{assetID}"
+	//"PUT /api/protected/portfolios/{portfolioID}/assets/{assetID}"
+
+	// TRANSACTION API
+	//POST	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions
+	//GET	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions
+	//GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
+	//PUT	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
+	//DELETE	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
@@ -183,7 +208,11 @@ func main() {
 
 	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
 	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
-	investmentsHandler := investments.NewInvestmentHandler(portfolioService, respondJSON, respondError)
+
+	assetRepo := assets.NewAssetRepository(dbService.DB)
+	assetService := assets.NewAssetService(assetRepo)
+
+	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, respondJSON, respondError)
 	server := NewServer(authHandler, authService, userHandler, investmentsHandler)
 
 	server.RegisterRoutes()
