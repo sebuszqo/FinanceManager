@@ -7,6 +7,7 @@ import (
 	investments "github.com/sebuszqo/FinanceManager/internal/investment"
 	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
 	portfolios "github.com/sebuszqo/FinanceManager/internal/investment/portfolio"
+	transactions "github.com/sebuszqo/FinanceManager/internal/investment/transaction"
 
 	"github.com/sebuszqo/FinanceManager/internal/auth"
 	database "github.com/sebuszqo/FinanceManager/internal/db"
@@ -160,7 +161,9 @@ func (s *Server) RegisterRoutes() {
 	//"PUT /api/protected/portfolios/{portfolioID}/assets/{assetID}"
 
 	// TRANSACTION API
-	//POST	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions
+	protectedRoutes.Handle("POST /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.CreateTransaction), "portfolioID", "assetID")))
+
 	//GET	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions
 	//GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//PUT	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
@@ -212,7 +215,10 @@ func main() {
 	assetRepo := assets.NewAssetRepository(dbService.DB)
 	assetService := assets.NewAssetService(assetRepo)
 
-	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, respondJSON, respondError)
+	transactionRepo := transactions.NewTransactionRepository(dbService.DB)
+	transactionService := transactions.NewTransactionService(transactionRepo)
+
+	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, transactionService, respondJSON, respondError)
 	server := NewServer(authHandler, authService, userHandler, investmentsHandler)
 
 	server.RegisterRoutes()
