@@ -28,7 +28,7 @@ type PortfolioRepository interface {
 	Create(ctx context.Context, portfolio *Portfolio) error
 	FindByID(ctx context.Context, portfolioID uuid.UUID, portfolio *Portfolio) error
 	ExistsByName(ctx context.Context, userID string, name string) (bool, error)
-	FindByUserID(ctx context.Context, userID string, portfolios *[]PortfolioDTO) error
+	findAllByUserID(ctx context.Context, userID string, portfolios *[]PortfolioDTO) error
 	Update(ctx context.Context, portfolio *Portfolio) (int64, error)
 	DeletePortfolio(ctx context.Context, portfolioID uuid.UUID) error
 }
@@ -73,7 +73,7 @@ func (r *portfolioRepository) FindByID(ctx context.Context, portfolioID uuid.UUI
 		&portfolio.ID, &portfolio.UserID, &portfolio.Name, &portfolio.Description, &portfolio.CreatedAt, &portfolio.UpdatedAt)
 }
 
-func (r *portfolioRepository) FindByUserID(ctx context.Context, userID string, portfolios *[]PortfolioDTO) error {
+func (r *portfolioRepository) findAllByUserID(ctx context.Context, userID string, portfolios *[]PortfolioDTO) error {
 	query := `SELECT id, name, description, created_at, updated_at FROM portfolios WHERE user_id = $1`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
