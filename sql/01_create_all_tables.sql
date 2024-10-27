@@ -100,3 +100,10 @@ INSERT INTO transaction_types (type) VALUES ('Fee');
 
 ALTER TABLE assets
     ADD CONSTRAINT unique_asset_per_portfolio UNIQUE (portfolio_id, name);
+
+ALTER TABLE assets
+    ADD COLUMN total_quantity NUMERIC(15, 4) DEFAULT 0,
+    ADD COLUMN average_purchase_price NUMERIC(15, 4) DEFAULT 0,
+    ADD COLUMN total_invested NUMERIC(15, 2) DEFAULT 0,
+    ADD COLUMN unrealized_gain_loss NUMERIC(15, 2) DEFAULT 0,
+    ADD COLUMN current_value NUMERIC(15, 2) DEFAULT 0;
