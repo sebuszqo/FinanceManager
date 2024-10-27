@@ -20,6 +20,7 @@ type Service interface {
 	GetAllPortfolios(ctx context.Context, userID string) ([]PortfolioDTO, error)
 	UpdatePortfolio(ctx context.Context, portfolioID uuid.UUID, userID string, name, description *string) error
 	DeletePortfolio(ctx context.Context, portfolioID uuid.UUID, userID string) error
+	CheckPortfolioOwnership(ctx context.Context, portfolioID uuid.UUID, userID string) (bool, error)
 }
 
 type service struct {
@@ -106,7 +107,6 @@ func (s *service) UpdatePortfolio(ctx context.Context, portfolioID uuid.UUID, us
 }
 
 func (s *service) DeletePortfolio(ctx context.Context, portfolioID uuid.UUID, userID string) error {
-
 	portfolio := &Portfolio{}
 	err := s.portfolioRepo.FindByID(ctx, portfolioID, portfolio)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *service) DeletePortfolio(ctx context.Context, portfolioID uuid.UUID, us
 }
 func (s *service) GetAllPortfolios(ctx context.Context, userID string) ([]PortfolioDTO, error) {
 	var portfolioList []PortfolioDTO
-	err := s.portfolioRepo.FindByUserID(ctx, userID, &portfolioList)
+	err := s.portfolioRepo.findAllByUserID(ctx, userID, &portfolioList)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrPortfolioNotFound
@@ -136,4 +136,13 @@ func (s *service) GetAllPortfolios(ctx context.Context, userID string) ([]Portfo
 	}
 
 	return portfolioList, nil
+}
+
+func (s *service) CheckPortfolioOwnership(ctx context.Context, portfolioID uuid.UUID, userID string) (bool, error) {
+	portfolio := &Portfolio{}
+	err := s.portfolioRepo.FindByID(ctx, portfolioID, portfolio)
+	if err != nil {
+		return false, err
+	}
+	return portfolio.UserID == userID, nil
 }
