@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -44,7 +45,7 @@ func (s *service) JWTAccessTokenMiddleware() func(http.Handler) http.Handler {
 					return
 				}
 			}
-
+			fmt.Println("New user Login", userID)
 			ctx := context.WithValue(r.Context(), "userID", userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
