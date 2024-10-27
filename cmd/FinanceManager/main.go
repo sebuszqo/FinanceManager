@@ -6,6 +6,7 @@ import (
 	"github.com/joho/godotenv"
 	investments "github.com/sebuszqo/FinanceManager/internal/investment"
 	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
+	"github.com/sebuszqo/FinanceManager/internal/investment/marketdata"
 	portfolios "github.com/sebuszqo/FinanceManager/internal/investment/portfolio"
 	transactions "github.com/sebuszqo/FinanceManager/internal/investment/transaction"
 
@@ -157,14 +158,18 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}/assets",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetAllAssets), "portfolioID")))
 
-	//"GET /api/protected/portfolios/{portfolioID}/assets/{assetID}"
 	//"PUT /api/protected/portfolios/{portfolioID}/assets/{assetID}"
 
 	// TRANSACTION API
+	protectedRoutes.Handle("GET /api/protected/transaction_types",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetTransactionTypes)))
+
 	protectedRoutes.Handle("POST /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.CreateTransaction), "portfolioID", "assetID")))
 
-	//GET	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions
+	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions",
+		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetAllTransactions), "portfolioID", "assetID")))
+
 	//GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//PUT	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//DELETE	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
@@ -196,6 +201,8 @@ func main() {
 	}
 	defer dbService.Close()
 
+	marketDataService := marketdata.NewYahooFinanceService()
+
 	authRepo := auth.NewUserRepository(dbService.DB)
 	userRepo := user.NewUserRepository(dbService.DB)
 
@@ -209,14 +216,16 @@ func main() {
 	authService := auth.NewAuthService(authRepo, userService, sessionManager, jwtManager, newEmailService, authenticator)
 	authHandler := auth.NewHandler(authService)
 
-	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
-	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
-
-	assetRepo := assets.NewAssetRepository(dbService.DB)
-	assetService := assets.NewAssetService(assetRepo)
-
 	transactionRepo := transactions.NewTransactionRepository(dbService.DB)
 	transactionService := transactions.NewTransactionService(transactionRepo)
+
+	assetRepo := assets.NewAssetRepository(dbService.DB)
+	assetService := assets.NewAssetService(assetRepo, transactionService, marketDataService)
+
+	transactionService.SetAssetService(assetService)
+
+	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
+	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
 
 	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, transactionService, respondJSON, respondError)
 	server := NewServer(authHandler, authService, userHandler, investmentsHandler)
