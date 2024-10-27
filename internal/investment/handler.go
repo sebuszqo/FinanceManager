@@ -6,30 +6,34 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
+	"github.com/sebuszqo/FinanceManager/internal/investment/models"
 	portfolios "github.com/sebuszqo/FinanceManager/internal/investment/portfolio"
+	transactions "github.com/sebuszqo/FinanceManager/internal/investment/transaction"
 	"net/http"
 	"time"
 )
 
 type InvestmentHandler struct {
-	portfolioService portfolios.Service
-	assetService     assets.Service
-	//transactionService transactions.Service
-	respondJSON  func(w http.ResponseWriter, status int, payload interface{})
-	respondError func(w http.ResponseWriter, status int, message string)
+	portfolioService   portfolios.Service
+	assetService       assets.Service
+	transactionService transactions.Service
+	respondJSON        func(w http.ResponseWriter, status int, payload interface{})
+	respondError       func(w http.ResponseWriter, status int, message string)
 }
 
 func NewInvestmentHandler(
 	portfolioService portfolios.Service,
 	assetsService assets.Service,
+	transactionsService transactions.Service,
 	respondJSON func(w http.ResponseWriter, status int, payload interface{}),
 	respondError func(w http.ResponseWriter, status int, message string),
 ) *InvestmentHandler {
 	return &InvestmentHandler{
-		portfolioService: portfolioService,
-		assetService:     assetsService,
-		respondJSON:      respondJSON,
-		respondError:     respondError,
+		portfolioService:   portfolioService,
+		transactionService: transactionsService,
+		assetService:       assetsService,
+		respondJSON:        respondJSON,
+		respondError:       respondError,
 	}
 }
 
@@ -170,9 +174,8 @@ func (h *InvestmentHandler) GetAllPortfolios(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *InvestmentHandler) UpdatePortfolio(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	userID := h.getUserIDReq(w, r)
+	if userID == "" {
 		return
 	}
 
@@ -187,9 +190,6 @@ func (h *InvestmentHandler) UpdatePortfolio(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	//if req.Description == nil {
-	//	fmt.Println("DESCIRPTION is not provided:")
-	//}
 	if (req.Name == nil && req.Description == nil) || (*req.Name == "" && *req.Description == "") {
 		h.respondError(w, http.StatusBadRequest, "At least one field (name or description) must be provided for update")
 		return
@@ -267,11 +267,11 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 	portfolioID := r.Context().Value("portfolioID").(uuid.UUID)
 	owned, err := h.portfolioService.CheckPortfolioOwnership(r.Context(), portfolioID, userID)
 	if err != nil {
-		http.Error(w, "Failed to check portfolio ownership", http.StatusInternalServerError)
+		h.respondError(w, http.StatusInternalServerError, "Failed to check portfolio ownership")
 		return
 	}
 	if !owned {
-		http.Error(w, "Unauthorized access to portfolio", http.StatusUnauthorized)
+		h.respondError(w, http.StatusUnauthorized, "Unauthorized access to portfolio")
 		return
 	}
 	assetRequest := &createAssetRequest{}
@@ -401,12 +401,12 @@ func (h *InvestmentHandler) DeleteAsset(w http.ResponseWriter, r *http.Request) 
 	assetID := r.Context().Value("assetID").(uuid.UUID)
 
 	// Single query to check if the asset belongs to the portfolio and if the user owns the portfolio
-	exists, err := h.assetService.DoesAssetBelongToUser(r.Context(), assetID, portfolioID, userID)
+	owned, err := h.assetService.CheckAssetOwnership(r.Context(), assetID, portfolioID, userID)
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "Failed to check asset and portfolio ownership")
 		return
 	}
-	if !exists {
+	if !owned {
 		h.respondError(w, http.StatusUnauthorized, "Unauthorized access or asset not found in portfolio")
 		return
 	}
@@ -430,10 +430,19 @@ func (h *InvestmentHandler) GetAllAssets(w http.ResponseWriter, r *http.Request)
 	}
 
 	portfolioID := r.Context().Value("portfolioID").(uuid.UUID)
-	assetList, err := h.assetService.GetAllAssets(r.Context(), userID, portfolioID)
+
+	owned, err := h.portfolioService.CheckPortfolioOwnership(r.Context(), portfolioID, userID)
+	if err != nil {
+		http.Error(w, "Failed to check portfolio ownership", http.StatusInternalServerError)
+		return
+	}
+	if !owned {
+		http.Error(w, "Unauthorized access to portfolio", http.StatusUnauthorized)
+		return
+	}
+	assetList, err := h.assetService.GetAllAssets(r.Context(), portfolioID)
 
 	if err != nil {
-		fmt.Println("err", err.Error())
 		if errors.Is(err, assets.ErrAssetsNotFound) {
 			h.respondError(w, http.StatusNotFound, "No assets in this portfolio")
 			return
@@ -448,4 +457,259 @@ func (h *InvestmentHandler) GetAllAssets(w http.ResponseWriter, r *http.Request)
 		"data":    assetList,
 	})
 
+}
+
+// Transaction handler
+type createTransactionRequest struct {
+	TransactionTypeID int      `json:"transaction_type_id"`
+	Quantity          float64  `json:"quantity"`
+	Price             float64  `json:"price"`
+	TransactionDate   string   `json:"transaction_date"` // Could be ISO8601 format
+	DividendAmount    *float64 `json:"dividend_amount,omitempty"`
+	CouponAmount      *float64 `json:"coupon_amount,omitempty"`
+}
+
+func (h *InvestmentHandler) GetTransactionTypes(w http.ResponseWriter, r *http.Request) {
+	// Retrieve the transaction types from the service
+	transactionTypes := h.transactionService.GetTransactionTypes()
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   transactionTypes,
+	})
+}
+
+func (h *InvestmentHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserIDReq(w, r)
+	if userID == "" {
+		return
+	}
+	portfolioID := r.Context().Value("portfolioID").(uuid.UUID)
+	assetID := r.Context().Value("assetID").(uuid.UUID)
+
+	owned, err := h.assetService.CheckAssetOwnership(r.Context(), assetID, portfolioID, userID)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "Failed to check asset and portfolio ownership")
+		return
+	}
+	if !owned {
+		h.respondError(w, http.StatusUnauthorized, "Unauthorized access or asset not found in portfolio")
+		return
+	}
+
+	asset, err := h.assetService.GetAssetByID(r.Context(), assetID)
+	if err != nil {
+		if errors.Is(err, assets.ErrAssetNotFound) {
+			h.respondError(w, http.StatusNotFound, "Asset doesn't exist")
+			return
+		}
+		fmt.Println(err.Error())
+		h.respondError(w, http.StatusInternalServerError, "Failed to retrieve asset")
+		return
+	}
+
+	var req createTransactionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	transactionDateStr := req.TransactionDate
+	if len(transactionDateStr) == 10 {
+		transactionDateStr = transactionDateStr + "T00:00:00Z"
+	}
+
+	// Convert transaction date from string to time.Time
+	transactionDate, err := time.Parse(time.RFC3339, transactionDateStr)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid transaction date format")
+		return
+	}
+
+	assetTypeName := h.assetService.GetAssetTypeName(asset.AssetTypeID)
+	err = h.validateTransactionForAssetType(assetTypeName, req)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	transaction := &models.Transaction{
+		ID:                uuid.New(),
+		AssetID:           assetID,
+		TransactionTypeID: req.TransactionTypeID,
+		Quantity:          req.Quantity,
+		Price:             req.Price,
+		TransactionDate:   transactionDate,
+		DividendAmount:    req.DividendAmount,
+		CouponAmount:      req.CouponAmount,
+		CreatedAt:         time.Now(),
+	}
+
+	err = h.transactionService.CreateTransaction(r.Context(), assetID, userID, transaction)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "Failed to create transaction")
+		return
+	}
+
+	h.respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"status": "success",
+		"data":   transaction,
+	})
+}
+
+func (h *InvestmentHandler) validateTransactionForAssetType(assetTypeName string, req createTransactionRequest) error {
+	switch assetTypeName {
+	case "Stock":
+		return h.validateStockTransaction(req)
+	case "Bond":
+		return h.validateBondTransaction(req)
+	case "ETF":
+		return h.validateETFTransaction(req)
+	case "Cryptocurrency":
+		return h.validateCryptocurrencyTransaction(req)
+	case "Savings Accounts":
+		return h.validateSavingsAccountTransaction(req)
+	case "Cash":
+		return h.validateCashTransaction(req)
+	default:
+		return fmt.Errorf("unsupported asset type: %s", assetTypeName)
+	}
+}
+
+func (h *InvestmentHandler) validateStockTransaction(req createTransactionRequest) error {
+	switch req.TransactionTypeID {
+	case 1: // Buy
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and price must be greater than 0 for stock Buy transactions")
+		}
+	case 2: // Sell
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and price must be greater than 0 for stock Sell transactions")
+		}
+	case 3: // Dividend
+		if req.DividendAmount == nil || *req.DividendAmount <= 0 {
+			return fmt.Errorf("dividendAmount must be greater than 0 for stock Dividend transactions")
+		}
+	default:
+		return fmt.Errorf("unsupported transaction type for stock")
+	}
+	return nil
+}
+
+func (h *InvestmentHandler) validateBondTransaction(req createTransactionRequest) error {
+	switch req.TransactionTypeID {
+	case 1: // Buy
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and Price must be greater than 0 for bond Buy transactions")
+		}
+	case 2: // Sell
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and Price must be greater than 0 for bond Sell transactions")
+		}
+	case 4: // Coupon Payment
+		if req.CouponAmount == nil || *req.CouponAmount <= 0 {
+			return fmt.Errorf("couponAmount must be greater than 0 for bond Coupon Payment transactions")
+		}
+	default:
+		return fmt.Errorf("unsupported transaction type for bond")
+	}
+	return nil
+}
+
+func (h *InvestmentHandler) validateETFTransaction(req createTransactionRequest) error {
+	switch req.TransactionTypeID {
+	case 1: // Buy
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and Price must be greater than 0 for ETF Buy transactions")
+		}
+	case 2: // Sell
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and Price must be greater than 0 for ETF Sell transactions")
+		}
+	default:
+		return fmt.Errorf("unsupported transaction type for ETF")
+	}
+	return nil
+}
+
+func (h *InvestmentHandler) validateCryptocurrencyTransaction(req createTransactionRequest) error {
+	switch req.TransactionTypeID {
+	case 1: // Buy
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and Price must be greater than 0 for cryptocurrency Buy transactions")
+		}
+	case 2: // Sell
+		if req.Quantity <= 0 || req.Price <= 0 {
+			return fmt.Errorf("quantity and Price must be greater than 0 for cryptocurrency Sell transactions")
+		}
+	default:
+		return fmt.Errorf("unsupported transaction type for cryptocurrency")
+	}
+	return nil
+}
+
+func (h *InvestmentHandler) validateSavingsAccountTransaction(req createTransactionRequest) error {
+	switch req.TransactionTypeID {
+	case 1: // Deposit
+		if req.Quantity <= 0 {
+			return fmt.Errorf("quantity must be greater than 0 for savings account Deposit transactions")
+		}
+	case 2: // Withdrawal
+		if req.Quantity <= 0 {
+			return fmt.Errorf("quantity must be greater than 0 for savings account Withdrawal transactions")
+		}
+	default:
+		return fmt.Errorf("unsupported transaction type for savings account")
+	}
+	return nil
+}
+
+func (h *InvestmentHandler) validateCashTransaction(req createTransactionRequest) error {
+	switch req.TransactionTypeID {
+	case 1: // Deposit
+		if req.Quantity <= 0 {
+			return fmt.Errorf("quantity must be greater than 0 for cash Deposit transactions")
+		}
+	case 2: // Withdrawal
+		if req.Quantity <= 0 {
+			return fmt.Errorf("quantity must be greater than 0 for cash Withdrawal transactions")
+		}
+	default:
+		return fmt.Errorf("unsupported transaction type for cash")
+	}
+	return nil
+}
+
+func (h *InvestmentHandler) GetAllTransactions(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserIDReq(w, r)
+	if userID == "" {
+		return
+	}
+
+	// Retrieve the portfolioID and assetID from the request context
+	portfolioID := r.Context().Value("portfolioID").(uuid.UUID)
+	assetID := r.Context().Value("assetID").(uuid.UUID)
+
+	// Single query to check if the asset belongs to the portfolio and if the user owns the portfolio
+	owned, err := h.assetService.CheckAssetOwnership(r.Context(), assetID, portfolioID, userID)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "Failed to check asset and portfolio ownership")
+		return
+	}
+	if !owned {
+		h.respondError(w, http.StatusUnauthorized, "Unauthorized access or asset not found in portfolio")
+		return
+	}
+
+	// Fetch transactions from the asset service
+	transactions, err := h.transactionService.GetAllTransactions(r.Context(), assetID)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "Failed to retrieve transactions")
+		return
+	}
+
+	// Return the transactions as a JSON response
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   transactions,
+	})
 }
