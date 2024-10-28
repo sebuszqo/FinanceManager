@@ -107,3 +107,55 @@ ALTER TABLE assets
     ADD COLUMN total_invested NUMERIC(15, 2) DEFAULT 0,
     ADD COLUMN unrealized_gain_loss NUMERIC(15, 2) DEFAULT 0,
     ADD COLUMN current_value NUMERIC(15, 2) DEFAULT 0;
+
+ALTER TABLE assets
+    ADD COLUMN currency VARCHAR(10),
+    ADD COLUMN exchange VARCHAR(50);
+
+ALTER TABLE assets
+    ADD COLUMN interest_accrued NUMERIC(15, 2) DEFAULT 0;
+
+CREATE TABLE verified_tickers (
+                                  ticker VARCHAR(50) PRIMARY KEY,
+                                  name VARCHAR(255) NOT NULL,
+                                  asset_type VARCHAR(50) NOT NULL,
+                                  last_verified_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE portfolio_snapshots (
+                                     id UUID PRIMARY KEY,
+                                     user_id UUID,
+                                     portfolio_id UUID,
+                                     total_value NUMERIC(15, 2),
+                                     total_invested NUMERIC(15, 2),
+                                     unrealized_gain_loss NUMERIC(15, 2),
+                                     snapshot_date DATE,
+                                     created_at TIMESTAMP,
+                                     updated_at TIMESTAMP,
+                                     FOREIGN KEY (portfolio_id)
+                                         REFERENCES portfolios(id)
+                                         ON DELETE CASCADE
+);
+
+
+
+
+CREATE TABLE instruments (
+                             id SERIAL PRIMARY KEY,
+                             symbol VARCHAR(20) NOT NULL,
+                             name VARCHAR(255) NOT NULL,
+                             exchange VARCHAR(50),
+                             exchange_short VARCHAR(20),
+                             asset_type_id INTEGER NOT NULL REFERENCES asset_types(id),
+                             price NUMERIC(18,6),
+                             currency VARCHAR(10),
+                             UNIQUE(symbol, exchange_short)
+);
+
+ALTER TABLE instruments ADD COLUMN updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW();
+
+
+CREATE INDEX idx_instruments_symbol ON instruments (symbol);
+CREATE INDEX idx_instruments_asset_type_id ON instruments (asset_type_id);
+CREATE INDEX idx_instruments_name ON instruments USING GIN (to_tsvector('english', name));
+
