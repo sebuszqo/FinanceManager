@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/sebuszqo/FinanceManager/internal/investment/models"
 	"time"
 )
 
@@ -24,13 +25,16 @@ type Asset struct {
 	TotalInvested        float64
 	CurrentValue         float64
 	UnrealizedGainLoss   float64
+	Currency             string
+	Exchange             string
+	InterestAccrued      float64
 	//RealizedGainLoss float64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 type AssetRepository interface {
-	doesAssetExist(ctx context.Context, portfolioID uuid.UUID, assetName string) (bool, error)
+	doesAssetExist(ctx context.Context, portfolioID uuid.UUID, assetName, ticker string) (bool, error)
 	getAssetByID(ctx context.Context, assetID uuid.UUID) (*Asset, error)
 	deleteAsset(ctx context.Context, assetID uuid.UUID) error
 	createAsset(ctx context.Context, asset *Asset) error
@@ -39,6 +43,8 @@ type AssetRepository interface {
 	findAllByPortfolioID(ctx context.Context, portfolioID uuid.UUID) ([]Asset, error)
 	doesAssetBelongToUser(ctx context.Context, assetID, portfolioID uuid.UUID, userID string) (bool, error)
 	updateAsset(ctx context.Context, asset *Asset) error
+	verifyTicker(ctx context.Context, ticker string) (tickerEntry *models.Ticker, err error)
+	addVerifiedTicker(ctx context.Context, verifiedTicker models.VerifiedTicker) error
 }
 
 type assetRepository struct {
@@ -71,7 +77,7 @@ func (a *assetRepository) getAssetTypes(ctx context.Context) ([]AssetType, error
 }
 
 func (a *assetRepository) findByPortfolioID(ctx context.Context, portfolioID uuid.UUID, assets *[]Asset) error {
-	query := `SELECT id, portfolio_id, name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, total_quantity, average_purchase_price, total_invested, unrealized_gain_loss, current_value ,created_at, updated_at 
+	query := `SELECT id, portfolio_id, name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, total_quantity, average_purchase_price, total_invested, unrealized_gain_loss, current_value , currency, exchange, interest_accrued, created_at, updated_at 
               FROM assets WHERE portfolio_id = $1`
 	rows, err := a.db.QueryContext(ctx, query, portfolioID)
 	if err != nil {
@@ -96,7 +102,11 @@ func (a *assetRepository) findByPortfolioID(ctx context.Context, portfolioID uui
 			&asset.TotalInvested,
 			&asset.UnrealizedGainLoss,
 			&asset.CurrentValue,
-			&asset.CreatedAt, &asset.UpdatedAt); err != nil {
+			&asset.Currency,
+			&asset.Exchange,
+			&asset.InterestAccrued,
+			&asset.CreatedAt,
+			&asset.UpdatedAt); err != nil {
 			return err
 		}
 		*assets = append(*assets, asset)
@@ -108,8 +118,8 @@ func (a *assetRepository) findByPortfolioID(ctx context.Context, portfolioID uui
 // Repository layer function for inserting a new asset into the database
 func (a *assetRepository) createAsset(ctx context.Context, asset *Asset) error {
 	query := `
-        INSERT INTO assets (id, portfolio_id, name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO assets (id, portfolio_id, name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, currency, exchange, interest_accrued, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     `
 
 	_, err := a.db.ExecContext(ctx, query,
@@ -123,6 +133,9 @@ func (a *assetRepository) createAsset(ctx context.Context, asset *Asset) error {
 		asset.FaceValue,
 		asset.DividendYield,
 		asset.Accumulation,
+		asset.Currency,
+		asset.Exchange,
+		asset.InterestAccrued,
 		asset.CreatedAt,
 		asset.UpdatedAt,
 	)
@@ -136,15 +149,13 @@ func (a *assetRepository) findAllByPortfolioID(ctx context.Context, portfolioID 
 }
 
 func (a *assetRepository) getAssetByID(ctx context.Context, assetID uuid.UUID) (*Asset, error) {
-	query := `SELECT name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, created_at, updated_at  from assets WHERE id = $1`
+	query := `SELECT name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, interest_accrued, created_at, updated_at  from assets WHERE id = $1`
 	asset := &Asset{}
-	err := a.db.QueryRowContext(ctx, query, assetID).Scan(&asset.Name, &asset.Ticker, &asset.AssetTypeID, &asset.CouponRate, &asset.MaturityDate, &asset.FaceValue, &asset.DividendYield, &asset.Accumulation, &asset.CreatedAt, &asset.UpdatedAt)
+	err := a.db.QueryRowContext(ctx, query, assetID).Scan(&asset.Name, &asset.Ticker, &asset.AssetTypeID, &asset.CouponRate, &asset.MaturityDate, &asset.FaceValue, &asset.DividendYield, &asset.Accumulation, &asset.InterestAccrued, &asset.CreatedAt, &asset.UpdatedAt)
 	return asset, err
 }
 
 func (a *assetRepository) updateAsset(ctx context.Context, asset *Asset) error {
-	fmt.Println("Gain Loss", asset.UnrealizedGainLoss)
-	fmt.Println("Valeu current", asset.CurrentValue)
 	query := `
         UPDATE assets
         SET
@@ -176,10 +187,10 @@ func (a *assetRepository) deleteAsset(ctx context.Context, assetID uuid.UUID) er
 	return err
 }
 
-func (a *assetRepository) doesAssetExist(ctx context.Context, portfolioID uuid.UUID, assetName string) (bool, error) {
-	query := `SELECT COUNT(1) FROM assets WHERE portfolio_id = $1 AND name = $2`
+func (a *assetRepository) doesAssetExist(ctx context.Context, portfolioID uuid.UUID, assetName, ticker string) (bool, error) {
+	query := `SELECT COUNT(1) FROM assets WHERE portfolio_id = $1 AND name = $2 OR portfolio_id = $1 AND ticker = $3`
 	var count int
-	err := a.db.QueryRowContext(ctx, query, portfolioID, assetName).Scan(&count)
+	err := a.db.QueryRowContext(ctx, query, portfolioID, assetName, ticker).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if asset exists: %w", err)
 	}
@@ -200,4 +211,45 @@ func (a *assetRepository) doesAssetBelongToUser(ctx context.Context, assetID, po
 		return false, fmt.Errorf("failed to check asset and portfolio ownership: %w", err)
 	}
 	return count > 0, nil
+}
+
+func (a *assetRepository) verifyTicker(ctx context.Context, ticker string) (*models.Ticker, error) {
+	query := `SELECT ticker, asset_type, name FROM verified_tickers WHERE ticker = $1`
+	tickerEntry := &models.Ticker{}
+	err := a.db.QueryRowContext(ctx, query, ticker).Scan(&tickerEntry.Ticker, &tickerEntry.AssetType, &tickerEntry.Name)
+	if err != nil {
+		return nil, err
+	}
+	return tickerEntry, nil
+}
+
+func (a *assetRepository) addVerifiedTicker(ctx context.Context, verifiedTicker models.VerifiedTicker) error {
+	query := `INSERT INTO verified_tickers (ticker, name, asset_type, last_verified_at) VALUES ($1, $2, $3, NOW())`
+
+	_, err := a.db.ExecContext(ctx, query,
+		verifiedTicker.Ticker,
+		verifiedTicker.Name,
+		verifiedTicker.AssetType,
+	)
+	return err
+}
+
+func (a *assetRepository) getAllVerifiedTickers(ctx context.Context) ([]*models.VerifiedTicker, error) {
+	query := `SELECT ticker, name, asset_type, last_verified_at FROM verified_tickers`
+	rows, err := a.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tickers []*models.VerifiedTicker
+	for rows.Next() {
+		var vt models.VerifiedTicker
+		err := rows.Scan(&vt.Ticker, &vt.Name, &vt.AssetType, &vt.LastVerifiedAt)
+		if err != nil {
+			return nil, err
+		}
+		tickers = append(tickers, &vt)
+	}
+	return tickers, nil
 }
