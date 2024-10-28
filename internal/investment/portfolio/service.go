@@ -142,6 +142,9 @@ func (s *service) CheckPortfolioOwnership(ctx context.Context, portfolioID uuid.
 	portfolio := &Portfolio{}
 	err := s.portfolioRepo.FindByID(ctx, portfolioID, portfolio)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, err
 	}
 	return portfolio.UserID == userID, nil
