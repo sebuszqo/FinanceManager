@@ -54,12 +54,14 @@ type createAssetRequest struct {
 	Name        string `json:"name"`
 	Ticker      string `json:"ticker"`
 	AssetTypeID int    `json:"asset_type_id"`
+	Currency    string `json:"currency"`
 	// Add other optional fields (for bonds, stocks, ETFs, etc.)
 	CouponRate    *float64 `json:"coupon_rate,omitempty"`
 	MaturityDate  *string  `json:"maturity_date,omitempty"`
 	FaceValue     *float64 `json:"face_value,omitempty"`
 	DividendYield *float64 `json:"dividend_yield,omitempty"`
 	Accumulation  *bool    `json:"accumulation,omitempty"`
+	Exchange      *string  `json:"exchange,omitempty"`
 }
 
 func (h *InvestmentHandler) getUserIDReq(w http.ResponseWriter, r *http.Request) string {
@@ -279,8 +281,8 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 		h.respondError(w, http.StatusBadRequest, "Invalid request payload")
 	}
 
-	if assetRequest.Name == "" || assetRequest.Ticker == "" || assetRequest.AssetTypeID == 0 {
-		h.respondError(w, http.StatusBadRequest, "Name, Ticker, and AssetTypeID are required fields")
+	if assetRequest.Name == "" || assetRequest.Ticker == "" || assetRequest.AssetTypeID == 0 || assetRequest.Currency == "" {
+		h.respondError(w, http.StatusBadRequest, "Name, Ticker, Currency and AssetTypeID are required fields")
 		return
 	}
 
@@ -292,7 +294,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check if the asset already exists in the portfolio
-	exists, err := h.assetService.DoesAssetExist(r.Context(), portfolioID, assetRequest.Name)
+	exists, err := h.assetService.DoesAssetExist(r.Context(), portfolioID, assetRequest.Name, assetRequest.Ticker)
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "Failed to check if asset exists")
 		return
@@ -307,6 +309,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 		PortfolioID: portfolioID,
 		Name:        assetRequest.Name,
 		Ticker:      assetRequest.Ticker,
+		Currency:    assetRequest.Currency,
 	}
 
 	switch assetRequest.AssetTypeID {
@@ -315,11 +318,17 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 			h.respondError(w, http.StatusBadRequest, "DividendYield is required for stocks")
 			return
 		}
+		if assetRequest.Exchange == nil {
+			h.respondError(w, http.StatusBadRequest, "Exchange is required for stocks")
+			return
+		}
 		asset.DividendYield = *assetRequest.DividendYield
+		asset.Exchange = *assetRequest.Exchange
 		asset.CouponRate = 0       // not applicable for stocks
 		asset.MaturityDate = nil   // not applicable for stocks
 		asset.FaceValue = 0        // not applicable for stocks
 		asset.Accumulation = false // not applicable for stocks
+		asset.InterestAccrued = 0
 
 	case 2: // Bond
 		if assetRequest.CouponRate == nil || assetRequest.MaturityDate == nil || assetRequest.FaceValue == nil {
@@ -337,17 +346,24 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 		asset.FaceValue = *assetRequest.FaceValue
 		asset.DividendYield = 0    // not applicable for bonds
 		asset.Accumulation = false // not applicable for bonds
+		asset.InterestAccrued = 0
 
 	case 3: // ETF
 		if assetRequest.Accumulation == nil {
 			h.respondError(w, http.StatusBadRequest, "Accumulation status is required for ETFs")
 			return
 		}
+		if assetRequest.Exchange == nil {
+			h.respondError(w, http.StatusBadRequest, "Exchange is required for ETFs")
+			return
+		}
 		asset.Accumulation = *assetRequest.Accumulation
+		asset.Exchange = *assetRequest.Exchange
 		asset.CouponRate = 0     // not applicable for ETFs
 		asset.MaturityDate = nil // not applicable for ETFs
 		asset.FaceValue = 0      // not applicable for ETFs
 		asset.DividendYield = 0  // not applicable for ETFs
+		asset.InterestAccrued = 0
 
 	case 4: // Cryptocurrency
 		// No specific fields required, so leave everything else as 0 or nil
@@ -356,7 +372,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 		asset.FaceValue = 0
 		asset.DividendYield = 0
 		asset.Accumulation = false
-
+		asset.InterestAccrued = 0
 	case 5: // Savings Accounts
 		// No specific fields required, similar to Cryptocurrency
 		asset.CouponRate = 0
@@ -364,7 +380,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 		asset.FaceValue = 0
 		asset.DividendYield = 0
 		asset.Accumulation = false
-
+		asset.InterestAccrued = 0
 	case 6: // Cash
 		// No specific fields required, similar to Cryptocurrency and Savings Accounts
 		asset.CouponRate = 0
@@ -372,7 +388,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 		asset.FaceValue = 0
 		asset.DividendYield = 0
 		asset.Accumulation = false
-
+		asset.InterestAccrued = 0
 	default:
 		h.respondError(w, http.StatusBadRequest, "Unsupported asset type")
 		return
@@ -380,6 +396,10 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 
 	asset.AssetTypeID = assetRequest.AssetTypeID
 	if err := h.assetService.CreateAsset(r.Context(), &asset); err != nil {
+		if errors.Is(err, assets.ErrNotValidTicker) {
+			h.respondError(w, http.StatusBadRequest, "Ticker of the asset is not valid")
+			return
+		}
 		h.respondError(w, http.StatusInternalServerError, "Failed to create asset")
 		return
 	}
