@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 	investments "github.com/sebuszqo/FinanceManager/internal/investment"
 	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
+	"github.com/sebuszqo/FinanceManager/internal/investment/instrument"
 	"github.com/sebuszqo/FinanceManager/internal/investment/marketdata"
 	portfolios "github.com/sebuszqo/FinanceManager/internal/investment/portfolio"
 	transactions "github.com/sebuszqo/FinanceManager/internal/investment/transaction"
@@ -55,15 +58,17 @@ type Server struct {
 	userHandler        *user.Handler
 	authService        auth.Service
 	userService        user.Service
+	instrumentHandler  instrument.Handler
 	investmentsHandler *investments.InvestmentHandler
 }
 
-func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler) *Server {
+func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler) *Server {
 	return &Server{
 		authHandler:        authHandler,
 		userHandler:        userHandler,
 		investmentsHandler: investmentHandler,
 		authService:        authService,
+		instrumentHandler:  instrumentHandler,
 		router:             http.NewServeMux(),
 	}
 }
@@ -174,6 +179,10 @@ func (s *Server) RegisterRoutes() {
 	//PUT	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//DELETE	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 
+	// INSTRUMENTS
+	protectedRoutes.Handle("GET /api/protected/instruments/search",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.instrumentHandler.SearchInstruments)))
+
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
 	refreshTokenRoutes.Handle("PUT /api/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
@@ -201,7 +210,13 @@ func main() {
 	}
 	defer dbService.Close()
 
-	marketDataService := marketdata.NewYahooFinanceService()
+	err = godotenv.Load()
+	if err != nil {
+		log.Println("Error loading .env file, continuing with system environment variables")
+	}
+
+	apiKey := os.Getenv("MARKET_DATA_API_KEY")
+	marketDataService := marketdata.NewFMPClient(apiKey)
 
 	authRepo := auth.NewUserRepository(dbService.DB)
 	userRepo := user.NewUserRepository(dbService.DB)
@@ -227,14 +242,59 @@ func main() {
 	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
 	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
 
+	instrumentRepo := instrument.NewInstrumentRepository(dbService.DB)
+	instrumentService := instrument.NewInstrumentService(instrumentRepo, marketDataService)
+	instrumentHandler := instrument.NewInstrumentHandler(
+		instrumentService,
+		respondJSON,
+		respondError,
+	)
+
 	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, transactionService, respondJSON, respondError)
-	server := NewServer(authHandler, authService, userHandler, investmentsHandler)
+	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler)
 
 	server.RegisterRoutes()
 
+	needsUpdate, err := instrumentService.NeedsUpdate(context.Background())
+	if err != nil {
+		log.Fatalf("Error checking if update is needed: %v", err)
+	}
+
+	if needsUpdate {
+		log.Println("Data is outdated or missing. Starting initial data import...")
+		err = instrumentService.ImportInstruments(context.Background())
+		if err != nil {
+			log.Fatalf("Error updating instruments: %v", err)
+		}
+		log.Println("Initial data import completed.")
+	} else {
+		log.Println("Data is valid, skipping initial data import")
+	}
+	err = StartScheduler(instrumentService)
+	if err != nil {
+		log.Fatalf("Scheduler didn't start, stoping the app ...")
+	}
 	loggingMiddleware := loggingMiddleware(http.HandlerFunc(server.router.ServeHTTP))
 	log.Println("Server starting on port 8080...")
 	if err := http.ListenAndServe(":8080", loggingMiddleware); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+func StartScheduler(instrumentService instrument.Service) error {
+	c := cron.New()
+	// Schedule the job to run every 6 hours
+	_, err := c.AddFunc("@every 6h", func() {
+		err := instrumentService.ImportInstruments(context.Background())
+		if err != nil {
+			log.Printf("Error updating instruments: %v", err)
+		} else {
+			log.Println("Instruments updated successfully.")
+		}
+	})
+	if err != nil {
+		return err
+	}
+	c.Start()
+	return nil
 }
