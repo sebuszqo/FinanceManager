@@ -397,7 +397,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 	asset.AssetTypeID = assetRequest.AssetTypeID
 	if err := h.assetService.CreateAsset(r.Context(), &asset); err != nil {
 		if errors.Is(err, assets.ErrNotValidTicker) {
-			h.respondError(w, http.StatusBadRequest, "Ticker of the asset is not valid")
+			h.respondError(w, http.StatusBadRequest, "Ticker, currency or exchange of the asset is not valid")
 			return
 		}
 		h.respondError(w, http.StatusInternalServerError, "Failed to create asset")
