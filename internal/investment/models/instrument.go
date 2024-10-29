@@ -20,3 +20,8 @@ type InstrumentDTO struct {
 	Price         float64 `json:"price"`
 	Currency      string  `json:"currency"`
 }
+
+type InstrumentPriceWithSymbol struct {
+	Symbol string  `json:"symbol"`
+	Price  float64 `json:"price"`
+}
