@@ -19,6 +19,7 @@ import (
 	"github.com/sebuszqo/FinanceManager/internal/user"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 )
@@ -231,17 +232,6 @@ func main() {
 	authService := auth.NewAuthService(authRepo, userService, sessionManager, jwtManager, newEmailService, authenticator)
 	authHandler := auth.NewHandler(authService)
 
-	transactionRepo := transactions.NewTransactionRepository(dbService.DB)
-	transactionService := transactions.NewTransactionService(transactionRepo)
-
-	assetRepo := assets.NewAssetRepository(dbService.DB)
-	assetService := assets.NewAssetService(assetRepo, transactionService, marketDataService)
-
-	transactionService.SetAssetService(assetService)
-
-	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
-	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
-
 	instrumentRepo := instrument.NewInstrumentRepository(dbService.DB)
 	instrumentService := instrument.NewInstrumentService(instrumentRepo, marketDataService)
 	instrumentHandler := instrument.NewInstrumentHandler(
@@ -249,6 +239,17 @@ func main() {
 		respondJSON,
 		respondError,
 	)
+
+	transactionRepo := transactions.NewTransactionRepository(dbService.DB)
+	transactionService := transactions.NewTransactionService(transactionRepo)
+
+	assetRepo := assets.NewAssetRepository(dbService.DB)
+	assetService := assets.NewAssetService(assetRepo, transactionService, marketDataService, instrumentService)
+
+	transactionService.SetAssetService(assetService)
+
+	portfolioRepo := portfolios.NewPortfolioRepository(dbService.DB)
+	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
 
 	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, transactionService, respondJSON, respondError)
 	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler)
@@ -274,16 +275,42 @@ func main() {
 	if err != nil {
 		log.Fatalf("Scheduler didn't start, stoping the app ...")
 	}
+	err = StartUpdateAssetScheduler(assetService)
+	if err != nil {
+		log.Fatalf("Scheduler didn't start, stoping the app ...")
+	}
 	loggingMiddleware := loggingMiddleware(http.HandlerFunc(server.router.ServeHTTP))
+	log.Println("Starting perf on port 6060...")
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	log.Println("Server starting on port 8080...")
 	if err := http.ListenAndServe(":8080", loggingMiddleware); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
 
+func StartUpdateAssetScheduler(assetService assets.Service) error {
+	c := cron.New()
+	// Schedule the job to run every 24 hour --> 0 5 0 * * *
+	_, err := c.AddFunc("@every 5m", func() {
+		err := assetService.UpdateAssetPricing(context.Background())
+		if err != nil {
+			log.Printf("Error updating asset pricing: %v", err)
+		} else {
+			log.Println("Assets prices updated successfully.")
+		}
+	})
+	if err != nil {
+		return err
+	}
+	c.Start()
+	return nil
+}
+
 func StartScheduler(instrumentService instrument.Service) error {
 	c := cron.New()
-	// Schedule the job to run every 6 hours
+	// Schedule the job to run every 6 hours --> 0 0 */6 * * *
 	_, err := c.AddFunc("@every 6h", func() {
 		err := instrumentService.ImportInstruments(context.Background())
 		if err != nil {
