@@ -45,6 +45,8 @@ type AssetRepository interface {
 	updateAsset(ctx context.Context, asset *Asset) error
 	verifyTicker(ctx context.Context, ticker string) (tickerEntry *models.Ticker, err error)
 	addVerifiedTicker(ctx context.Context, verifiedTicker models.VerifiedTicker) error
+	getAllAssets(ctx context.Context) ([]Asset, error)
+	updateAssets(ctx context.Context, assets []Asset) error
 }
 
 type assetRepository struct {
@@ -252,4 +254,114 @@ func (a *assetRepository) getAllVerifiedTickers(ctx context.Context) ([]*models.
 		tickers = append(tickers, &vt)
 	}
 	return tickers, nil
+}
+
+func (a *assetRepository) getAllAssets(ctx context.Context) ([]Asset, error) {
+	rows, err := a.db.QueryContext(ctx, `
+        SELECT id, portfolio_id, name, ticker, asset_type_id, coupon_rate, maturity_date,
+               face_value, dividend_yield, accumulation, created_at, updated_at,
+               total_quantity, average_purchase_price, total_invested, unrealized_gain_loss,
+               current_value, interest_accrued
+        FROM assets
+    `)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var assets []Asset
+	for rows.Next() {
+		var a Asset
+		if err := rows.Scan(
+			&a.ID,
+			&a.PortfolioID,
+			&a.Name,
+			&a.Ticker,
+			&a.AssetTypeID,
+			&a.CouponRate,
+			&a.MaturityDate,
+			&a.FaceValue,
+			&a.DividendYield,
+			&a.Accumulation,
+			&a.CreatedAt,
+			&a.UpdatedAt,
+			&a.TotalQuantity,
+			&a.AveragePurchasePrice,
+			&a.TotalInvested,
+			&a.UnrealizedGainLoss,
+			&a.CurrentValue,
+			&a.InterestAccrued,
+		); err != nil {
+			return nil, err
+		}
+		assets = append(assets, a)
+	}
+
+	return assets, nil
+}
+
+func (a *assetRepository) UpdateAssets(ctx context.Context, assets []Asset) error {
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.PrepareContext(ctx, `
+        UPDATE assets
+        SET
+            current_value = $1,
+            unrealized_gain_loss = $2,
+            updated_at = $3
+        WHERE id = $4
+    `)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	for _, asset := range assets {
+		_, err := stmt.ExecContext(ctx,
+			asset.CurrentValue,
+			asset.UnrealizedGainLoss,
+			time.Now(),
+			asset.ID,
+		)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (a *assetRepository) updateAssets(ctx context.Context, assets []Asset) error {
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `
+        UPDATE assets
+        SET current_value = $1,
+            unrealized_gain_loss = $2,
+            interest_accrued = $3,
+            updated_at = $4
+        WHERE id = $5
+    `)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, asset := range assets {
+		_, err := stmt.ExecContext(ctx, asset.CurrentValue, asset.UnrealizedGainLoss, asset.InterestAccrued, time.Now(), asset.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
