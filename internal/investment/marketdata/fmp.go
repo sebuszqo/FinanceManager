@@ -49,7 +49,7 @@ func (c *FinancialModelingPrepClient) VerifyTicker(ticker, exchange, currency st
 	}
 
 	if len(results) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("ticker %s not found on exchange %s with currency %s", ticker, exchange, currency)
 	}
 
 	var verifiedTicker models.VerifiedTicker
