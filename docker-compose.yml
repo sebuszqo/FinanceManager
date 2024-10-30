@@ -4,6 +4,7 @@ services:
     container_name: finance_manager_db
     environment:
       POSTGRES_DB: finance_db
+# port exposed only for testing purpose
     ports:
       - "5432:5432"
     volumes:

@@ -106,6 +106,7 @@ func (s *Server) RegisterRoutes() {
 	publicRoutes.Handle("POST /api/register", http.HandlerFunc(s.userHandler.HandleRegister))
 	publicRoutes.Handle("POST /api/email/verify", http.HandlerFunc(s.userHandler.HandleVerifyEmail))
 	publicRoutes.Handle("POST /api/auth/login", http.HandlerFunc(s.authHandler.HandleLogin))
+	publicRoutes.Handle("POST /api/auth/logout", http.HandlerFunc(s.authHandler.HandleLogout))
 	publicRoutes.Handle("POST /api/auth/2fa/verify", http.HandlerFunc(s.authHandler.HandleVerifyTwoFactor))
 	publicRoutes.Handle("POST /api/password-reset/request", http.HandlerFunc(s.authHandler.RequestPasswordResetHandler))
 	publicRoutes.Handle("POST /api/password-reset/confirm", http.HandlerFunc(s.authHandler.ResetPasswordHandler))

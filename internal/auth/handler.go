@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/user"
 	"net/http"
+	"time"
 )
 
 type Handler struct {
@@ -112,6 +113,31 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			"access_token": sessionTokenOrJWT,
 		},
 	})
+}
+
+func (s *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	_, err := r.Cookie("refresh_token")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			respondJSON(w, http.StatusOK, "Logout successful")
+			return
+		}
+		respondError(w, http.StatusBadRequest, "Error during logout request.")
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/api/refresh/token",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	respondJSON(w, http.StatusOK, "Logout successful")
+	//http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (s *Handler) HandleRegisterTwoFactor(w http.ResponseWriter, r *http.Request) {

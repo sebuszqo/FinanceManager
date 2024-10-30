@@ -18,18 +18,18 @@ type Service interface {
 	GetTickerWithPriceInstruments(ctx context.Context) ([]models.InstrumentPriceWithSymbol, error)
 }
 
-type APIClient interface {
+type APIService interface {
 	FetchAllInstruments() (*[]models.InstrumentDTO, error)
 	//FetchInstrumentPrices(symbols []string) (map[string]float64, error)
 }
 
 type service struct {
 	instrumentRepo Repository
-	apiClient      APIClient
+	marketDataSvc  APIService
 }
 
 func (s *service) ImportInstruments(ctx context.Context) error {
-	instrumentDTOs, err := s.apiClient.FetchAllInstruments()
+	instrumentDTOs, err := s.marketDataSvc.FetchAllInstruments()
 	if err != nil {
 		return err
 	}
@@ -107,8 +107,8 @@ func (s *service) GetTickerWithPriceInstruments(ctx context.Context) ([]models.I
 	return instruments, nil
 }
 
-func NewInstrumentService(repo Repository, apiClient APIClient) Service {
-	return &service{instrumentRepo: repo, apiClient: apiClient}
+func NewInstrumentService(repo Repository, marketDataSvc APIService) Service {
+	return &service{instrumentRepo: repo, marketDataSvc: marketDataSvc}
 }
 
 func (s *service) GetCurrentInstrumentPrice(ticker string) (float64, error) {
