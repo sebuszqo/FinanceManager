@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
+	"github.com/sebuszqo/FinanceManager/db"
 	investments "github.com/sebuszqo/FinanceManager/internal/investment"
 	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
 	"github.com/sebuszqo/FinanceManager/internal/investment/instrument"
@@ -14,7 +15,6 @@ import (
 	transactions "github.com/sebuszqo/FinanceManager/internal/investment/transaction"
 
 	"github.com/sebuszqo/FinanceManager/internal/auth"
-	database "github.com/sebuszqo/FinanceManager/internal/db"
 	emailService "github.com/sebuszqo/FinanceManager/internal/email"
 	"github.com/sebuszqo/FinanceManager/internal/user"
 	"log"
