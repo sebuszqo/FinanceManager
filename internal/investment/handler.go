@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// I know that this handler should be divided into smaller ones in each file like it's done in "instrument" --> I will refactor it in the future
+
 type InvestmentHandler struct {
 	portfolioService   portfolios.Service
 	assetService       assets.Service
