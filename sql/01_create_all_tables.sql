@@ -159,3 +159,55 @@ CREATE INDEX idx_instruments_symbol ON instruments (symbol);
 CREATE INDEX idx_instruments_asset_type_id ON instruments (asset_type_id);
 CREATE INDEX idx_instruments_name ON instruments USING GIN (to_tsvector('english', name));
 
+CREATE TABLE predefined_categories (
+                                       id SERIAL PRIMARY KEY,
+                                       name VARCHAR(50) NOT NULL UNIQUE,
+                                       type VARCHAR(10) CHECK (type IN ('income', 'expense')) NOT NULL
+);
+
+
+CREATE TABLE user_categories (
+                                 id SERIAL PRIMARY KEY,
+                                 name VARCHAR(50) NOT NULL,
+                                 user_id UUID REFERENCES users(id) NOT NULL,
+                                 UNIQUE (name, user_id)
+);
+
+
+CREATE TABLE payment_methods (
+                                 id SERIAL PRIMARY KEY,
+                                 name VARCHAR(50) NOT NULL UNIQUE
+);
+INSERT INTO payment_methods (name) VALUES ('card'), ('cash'), ('BLIK'), ('bank_transaction');
+
+CREATE TABLE payment_sources (
+                                 id SERIAL PRIMARY KEY,
+                                 user_id UUID REFERENCES users(id) NOT NULL,           -- ID użytkownika, do którego należy źródło płatności
+                                 payment_method_id INT REFERENCES payment_methods(id) NOT NULL, -- Sposób płatności, np. karta, gotówka, BLIK
+                                 name VARCHAR(50) NOT NULL,                           -- Nazwa źródła, np. „karta Visa”, „konto bankowe w PKO”
+                                 details JSONB                                        -- Opcjonalne szczegóły, np. numer konta dla kont bankowych
+);
+
+
+
+CREATE TABLE personal_transactions (
+                                       id SERIAL PRIMARY KEY,
+                                       predefined_category_id INT REFERENCES predefined_categories(id),
+                                       user_category_id INT REFERENCES user_categories(id),
+                                       user_id UUID REFERENCES users(id) NOT NULL,
+                                       amount DECIMAL(10, 2) NOT NULL,
+                                       type VARCHAR(10) CHECK (type IN ('income', 'expense')) NOT NULL,
+                                       date DATE NOT NULL,
+                                       description TEXT,
+                                       payment_method_id INT REFERENCES payment_methods(id),
+                                       payment_source_id INT REFERENCES payment_sources(id),
+                                       CHECK (
+                                           predefined_category_id IS NOT NULL AND
+                                           (user_category_id IS NULL OR user_category_id IS NOT NULL)
+                                           )
+);
+
+
+
+
+
