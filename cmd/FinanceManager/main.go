@@ -7,6 +7,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
 	"github.com/sebuszqo/FinanceManager/db"
+	"github.com/sebuszqo/FinanceManager/internal/finance/application"
+	"github.com/sebuszqo/FinanceManager/internal/finance/infrastructure"
+	"github.com/sebuszqo/FinanceManager/internal/finance/interfaces"
 	investments "github.com/sebuszqo/FinanceManager/internal/investment"
 	assets "github.com/sebuszqo/FinanceManager/internal/investment/asset"
 	"github.com/sebuszqo/FinanceManager/internal/investment/instrument"
@@ -54,23 +57,25 @@ func respondError(w http.ResponseWriter, status int, message string) {
 }
 
 type Server struct {
-	router             *http.ServeMux
-	authHandler        *auth.Handler
-	userHandler        *user.Handler
-	authService        auth.Service
-	userService        user.Service
-	instrumentHandler  instrument.Handler
-	investmentsHandler *investments.InvestmentHandler
+	router                      *http.ServeMux
+	authHandler                 *auth.Handler
+	userHandler                 *user.Handler
+	authService                 auth.Service
+	userService                 user.Service
+	instrumentHandler           instrument.Handler
+	investmentsHandler          *investments.InvestmentHandler
+	personalTransactionsHandler *interfaces.PersonalTransactionHandler
 }
 
-func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler) *Server {
+func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler, personalTransactionsHandler *interfaces.PersonalTransactionHandler) *Server {
 	return &Server{
-		authHandler:        authHandler,
-		userHandler:        userHandler,
-		investmentsHandler: investmentHandler,
-		authService:        authService,
-		instrumentHandler:  instrumentHandler,
-		router:             http.NewServeMux(),
+		authHandler:                 authHandler,
+		userHandler:                 userHandler,
+		investmentsHandler:          investmentHandler,
+		authService:                 authService,
+		instrumentHandler:           instrumentHandler,
+		personalTransactionsHandler: personalTransactionsHandler,
+		router:                      http.NewServeMux(),
 	}
 }
 
@@ -180,10 +185,16 @@ func (s *Server) RegisterRoutes() {
 	//GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//PUT	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//DELETE	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
-
 	// INSTRUMENTS
 	protectedRoutes.Handle("GET /api/protected/instruments/search",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.instrumentHandler.SearchInstruments)))
+
+	// FINANCE API
+	protectedRoutes.Handle("POST /api/protected/finance/transactions",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransaction)))
+
+	protectedRoutes.Handle("POST /api/protected/finance/transactions",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransactionsBulk)))
 
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
@@ -253,7 +264,15 @@ func main() {
 	portfolioService := portfolios.NewPortfolioService(portfolioRepo)
 
 	investmentsHandler := investments.NewInvestmentHandler(portfolioService, assetService, transactionService, respondJSON, respondError)
-	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler)
+
+	categoryRepository := infrastructure.NewCategoryRepository(dbService.DB)
+	personalTransactionRepository := infrastructure.NewPersonalTransactionRepository(dbService.DB)
+
+	categoryService := application.NewCategoryService(categoryRepository)
+	personalTransactionService := application.NewPersonalTransactionService(personalTransactionRepository, categoryService)
+	personalTransactionHandler := interfaces.NewPersonalTransactionHandler(personalTransactionService, respondJSON, respondError)
+
+	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler, personalTransactionHandler)
 
 	server.RegisterRoutes()
 
