@@ -193,7 +193,7 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("POST /api/protected/finance/transactions",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransaction)))
 
-	protectedRoutes.Handle("POST /api/protected/finance/transactions",
+	protectedRoutes.Handle("POST /api/protected/finance/transactions/bulk",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransactionsBulk)))
 
 	// Refresh token routes

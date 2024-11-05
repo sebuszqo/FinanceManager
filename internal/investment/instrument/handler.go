@@ -47,8 +47,8 @@ func (h *handler) SearchInstruments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if assetTypeID != 1 && assetTypeID != 2 {
-		http.Error(w, "Query parameter 'typeID' can be 1 (stock) or 2 (bonds)", http.StatusBadRequest)
+	if assetTypeID != 1 && assetTypeID != 3 {
+		http.Error(w, "Query parameter 'typeID' can be 1 (stock) or 3 (etf)", http.StatusBadRequest)
 		return
 	}
 

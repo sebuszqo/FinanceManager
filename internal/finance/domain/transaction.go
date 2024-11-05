@@ -30,9 +30,10 @@ type PersonalTransaction struct {
 }
 
 func (t *PersonalTransaction) Validate() error {
-	if t.Amount <= 0 {
-		return errors.NewValidationError("Amount must be greater than zero")
-	}
+	// it doesnt' need to be greater than zero :D
+	//if t.Amount <= 0 {
+	//	return errors.NewValidationError("Amount must be greater than zero")
+	//}
 	if t.Type != "income" && t.Type != "expense" {
 		return errors.NewValidationError("Type must be 'income' or 'expense'")
 	}

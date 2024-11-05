@@ -62,6 +62,15 @@ func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWrite
 		h.respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+	if req.Transactions == nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if len(req.Transactions) == 0 {
+		h.respondError(w, http.StatusBadRequest, "No transactions provided")
+		return
+	}
 
 	if err := h.service.CreateTransactionsBulk(req.Transactions); err != nil {
 		if financeErrors.IsValidationErrors(err) {

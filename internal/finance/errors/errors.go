@@ -28,8 +28,8 @@ func NewIndexedValidationError(index int, msg string) error {
 	return &ValidationError{Msg: fmt.Sprintf("Validation error at transaction %d: %s", index, msg)}
 }
 
-var ErrInvalidUserCategory = NewValidationError("Invalid personal user category")
-var ErrInvalidPredefinedCategory = NewValidationError("Invalid predefined category")
+var ErrInvalidUserCategory = NewValidationError("Invalid personal user category ID")
+var ErrInvalidPredefinedCategory = NewValidationError("Invalid predefined category ID")
 
 type ValidationErrors struct {
 	Errors []error

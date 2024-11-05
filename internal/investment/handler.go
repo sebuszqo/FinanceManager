@@ -113,7 +113,6 @@ func (h *InvestmentHandler) CreatePortfolio(w http.ResponseWriter, r *http.Reque
 			UpdatedAt:   portfolio.UpdatedAt,
 		},
 	})
-
 }
 
 func (h *InvestmentHandler) GetPortfolio(w http.ResponseWriter, r *http.Request) {
@@ -478,7 +477,6 @@ func (h *InvestmentHandler) GetAllAssets(w http.ResponseWriter, r *http.Request)
 		"message": "List of assets retrieved successfully.",
 		"data":    assetList,
 	})
-
 }
 
 // Transaction handler
@@ -722,16 +720,16 @@ func (h *InvestmentHandler) GetAllTransactions(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Fetch transactions from the asset service
-	transactions, err := h.transactionService.GetAllTransactions(r.Context(), assetID)
+	// Fetch allTransactions from the asset service
+	allTransactions, err := h.transactionService.GetAllTransactions(r.Context(), assetID)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to retrieve transactions")
+		h.respondError(w, http.StatusInternalServerError, "Failed to retrieve allTransactions")
 		return
 	}
 
-	// Return the transactions as a JSON response
+	// Return the allTransactions as a JSON response
 	h.respondJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
-		"data":   transactions,
+		"data":   allTransactions,
 	})
 }
