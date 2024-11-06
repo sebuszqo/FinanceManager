@@ -67,7 +67,6 @@ func TestCreateTransactionsBulk_InvalidRequestBody(t *testing.T) {
 	service := &MockTransactionService{}
 	handler := NewPersonalTransactionHandler(service, respondJSON, respondError)
 
-	// Test 1: Body nie jest w formacie JSON
 	req := httptest.NewRequest(http.MethodPost, "/transactions/bulk", bytes.NewBufferString("invalid body"))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -82,12 +81,10 @@ func TestCreateTransactionsBulk_InvalidRequestBody(t *testing.T) {
 	err := json.NewDecoder(res.Body).Decode(&response)
 	assert.NoError(t, err)
 
-	// Sprawdź pełną strukturę odpowiedzi
 	assert.Equal(t, "error", response["status"])
 	assert.Equal(t, "Invalid request body", response["message"])
 	assert.Equal(t, float64(http.StatusBadRequest), response["code"]) // Kod statusu będzie typu float64 po dekodowaniu JSON
 
-	// Test 2: Brakuje klucza "transactions" w JSON
 	body, err := json.Marshal(map[string]interface{}{
 		"wrongKey": []domain.PersonalTransaction{
 			{Amount: 100, Type: "income", PredefinedCategoryID: nil, UserCategoryID: nil},
@@ -109,10 +106,9 @@ func TestCreateTransactionsBulk_InvalidRequestBody(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "error", response["status"])
-	assert.Equal(t, "Invalid request body", response["message"])
+	assert.Equal(t, "Invalid request body - no transactions provided", response["message"])
 	assert.Equal(t, float64(http.StatusBadRequest), response["code"])
 
-	// Test 3: "transactions" nie jest tablicą
 	body, err = json.Marshal(map[string]interface{}{
 		"transactions": "this should be an array, not a string",
 	})

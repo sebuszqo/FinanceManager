@@ -63,12 +63,7 @@ func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWrite
 		return
 	}
 	if req.Transactions == nil {
-		h.respondError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	if len(req.Transactions) == 0 {
-		h.respondError(w, http.StatusBadRequest, "No transactions provided")
+		h.respondError(w, http.StatusBadRequest, "Invalid request body - no transactions provided")
 		return
 	}
 
