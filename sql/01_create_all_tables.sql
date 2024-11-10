@@ -159,26 +159,75 @@ CREATE INDEX idx_instruments_symbol ON instruments (symbol);
 CREATE INDEX idx_instruments_asset_type_id ON instruments (asset_type_id);
 CREATE INDEX idx_instruments_name ON instruments USING GIN (to_tsvector('english', name));
 
+CREATE TABLE IF NOT EXISTS user_categories (
+                                               id SERIAL PRIMARY KEY,
+                                               name VARCHAR(50) NOT NULL,
+                                               user_id UUID REFERENCES users(id) NOT NULL,
+                                               UNIQUE (name, user_id)
+);
+
 CREATE TABLE predefined_categories (
                                        id SERIAL PRIMARY KEY,
-                                       name VARCHAR(50) NOT NULL UNIQUE,
-                                       type VARCHAR(10) CHECK (type IN ('income', 'expense')) NOT NULL
+                                       name VARCHAR(50) NOT NULL,
+                                       type VARCHAR(10) CHECK (type IN ('income', 'expense')) NOT NULL,
+                                       UNIQUE (name, type)
 );
 
 
-CREATE TABLE user_categories (
-                                 id SERIAL PRIMARY KEY,
-                                 name VARCHAR(50) NOT NULL,
-                                 user_id UUID REFERENCES users(id) NOT NULL,
-                                 UNIQUE (name, user_id)
-);
+INSERT INTO predefined_categories (name, type) VALUES
+                                                   ('Children', 'expense'),
+                                                   ('Clothing', 'expense'),
+                                                   ('EatingOut', 'expense'),
+                                                   ('Education', 'expense'),
+                                                   ('Car', 'expense'),
+                                                   ('Electronics', 'expense'),
+                                                   ('Entertainment', 'expense'),
+                                                   ('Gifts', 'expense'),
+                                                   ('Groceries', 'expense'),
+                                                   ('Health', 'expense'),
+                                                   ('Hobby', 'expense'),
+                                                   ('Hygiene', 'expense'),
+                                                   ('Insurance', 'expense'),
+                                                   ('Investments', 'expense'),
+                                                   ('Obligations', 'expense'),
+                                                   ('Pets', 'expense'),
+                                                   ('Rent', 'expense'),
+                                                   ('Savings', 'expense'),
+                                                   ('Sport', 'expense'),
+                                                   ('Subscriptions', 'expense'),
+                                                   ('Taxes', 'expense'),
+                                                   ('Transport', 'expense'),
+                                                   ('Travel', 'expense'),
+                                                   ('Utility', 'expense'),
+                                                   ('Other', 'expense');
+
+
+INSERT INTO predefined_categories (name, type) VALUES
+                                                   ('Bonus', 'income'),
+                                                   ('Gifts', 'income'),
+                                                   ('InvestmentsIncome', 'income'),
+                                                   ('Salary', 'income'),
+                                                   ('SideGig', 'income'),
+                                                   ('Other', 'expense');
+
+
 
 
 CREATE TABLE payment_methods (
                                  id SERIAL PRIMARY KEY,
                                  name VARCHAR(50) NOT NULL UNIQUE
 );
-INSERT INTO payment_methods (name) VALUES ('card'), ('cash'), ('BLIK'), ('bank_transaction');
+
+INSERT INTO payment_methods (name) VALUES
+                                       ('Payment Card'),
+                                       ('PayPal'),
+                                       ('Apple Pay'),
+                                       ('Google Pay'),
+                                       ('Cash'),
+                                       ('Cryptocurrency'),
+                                       ('Prepaid Card'),
+                                       ('Gift Card');
+
 
 CREATE TABLE payment_sources (
                                  id SERIAL PRIMARY KEY,
