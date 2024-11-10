@@ -18,8 +18,8 @@ func (s *CategoryService) DoesUserCategoryExist(categoryID int, userID string) (
 	return s.repo.DoesUserCategoryExistByID(categoryID, userID)
 }
 
-func (s *CategoryService) GetAllPredefinedCategories() ([]domain.PredefinedCategory, error) {
-	return s.repo.FindPredefinedCategories()
+func (s *CategoryService) GetAllPredefinedCategories(categoryType string) ([]domain.PredefinedCategory, error) {
+	return s.repo.FindPredefinedCategories(categoryType)
 }
 
 func (s *CategoryService) GetAllUserCategories(userID string) ([]domain.UserCategory, error) {
