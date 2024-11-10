@@ -65,9 +65,10 @@ type Server struct {
 	instrumentHandler           instrument.Handler
 	investmentsHandler          *investments.InvestmentHandler
 	personalTransactionsHandler *interfaces.PersonalTransactionHandler
+	financeCategoriesHandler    *interfaces.CategoryHandler
 }
 
-func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler, personalTransactionsHandler *interfaces.PersonalTransactionHandler) *Server {
+func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler, personalTransactionsHandler *interfaces.PersonalTransactionHandler, financeCategoriesHandler *interfaces.CategoryHandler) *Server {
 	return &Server{
 		authHandler:                 authHandler,
 		userHandler:                 userHandler,
@@ -75,6 +76,7 @@ func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler 
 		authService:                 authService,
 		instrumentHandler:           instrumentHandler,
 		personalTransactionsHandler: personalTransactionsHandler,
+		financeCategoriesHandler:    financeCategoriesHandler,
 		router:                      http.NewServeMux(),
 	}
 }
@@ -196,6 +198,9 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("POST /api/protected/finance/transactions/bulk",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransactionsBulk)))
 
+	protectedRoutes.Handle("POST /api/protected/finance/categories",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financeCategoriesHandler.GetCategories)))
+
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
 	refreshTokenRoutes.Handle("PUT /api/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
@@ -269,10 +274,13 @@ func main() {
 	personalTransactionRepository := infrastructure.NewPersonalTransactionRepository(dbService.DB)
 
 	categoryService := application.NewCategoryService(categoryRepository)
+
 	personalTransactionService := application.NewPersonalTransactionService(personalTransactionRepository, categoryService)
 	personalTransactionHandler := interfaces.NewPersonalTransactionHandler(personalTransactionService, respondJSON, respondError)
 
-	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler, personalTransactionHandler)
+	financeCategoriesHandler := interfaces.NewCategoryHandler(categoryService, respondJSON, respondError)
+
+	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler, personalTransactionHandler, financeCategoriesHandler)
 
 	server.RegisterRoutes()
 
