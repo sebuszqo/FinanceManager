@@ -13,7 +13,7 @@ type UserCategory struct {
 }
 
 type CategoryRepository interface {
-	FindPredefinedCategories() ([]PredefinedCategory, error)
+	FindPredefinedCategories(categoryType string) ([]PredefinedCategory, error)
 	FindUserCategories(userID string) ([]UserCategory, error)
 	DoesPredefinedCategoryExistByID(categoryID int) (bool, error)
 	DoesUserCategoryExistByID(categoryID int, userID string) (bool, error)
