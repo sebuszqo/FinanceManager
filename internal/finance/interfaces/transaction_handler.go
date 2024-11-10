@@ -51,7 +51,12 @@ func (h *PersonalTransactionHandler) CreateTransaction(w http.ResponseWriter, r 
 		h.respondError(w, http.StatusInternalServerError, "Failed to create transaction")
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
+
+	h.respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"status":  "success",
+		"message": "Transaction successfully created.",
+		"data":    transaction,
+	})
 }
 
 func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +86,11 @@ func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWrite
 		h.respondError(w, http.StatusInternalServerError, "Failed to create transaction")
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
+	h.respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"status":  "success",
+		"message": "Transactions successfully created.",
+		"data":    req.Transactions,
+	})
 }
 
 func (h *PersonalTransactionHandler) GetUserTransactions(w http.ResponseWriter, r *http.Request) {
@@ -95,5 +104,9 @@ func (h *PersonalTransactionHandler) GetUserTransactions(w http.ResponseWriter, 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(transactions)
+
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   transactions,
+	})
 }
