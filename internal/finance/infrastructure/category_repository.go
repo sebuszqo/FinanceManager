@@ -37,8 +37,15 @@ func (r *CategoryRepository) doesUserCategoryExistByID(categoryID int, userID st
 	return exists, err
 }
 
-func (r *CategoryRepository) FindPredefinedCategories() ([]domain.PredefinedCategory, error) {
-	rows, err := r.db.Query("SELECT id FROM predefined_categories")
+func (r *CategoryRepository) FindPredefinedCategories(categoryType string) ([]domain.PredefinedCategory, error) {
+	query := "SELECT id, name, type FROM predefined_categories"
+	var args []interface{}
+
+	if categoryType != "" {
+		query += " WHERE type = $1"
+		args = append(args, categoryType)
+	}
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,11 +54,12 @@ func (r *CategoryRepository) FindPredefinedCategories() ([]domain.PredefinedCate
 	var categories []domain.PredefinedCategory
 	for rows.Next() {
 		var category domain.PredefinedCategory
-		if err := rows.Scan(&category.ID); err != nil {
+		if err := rows.Scan(&category.ID, &category.Name, &category.Type); err != nil {
 			return nil, err
 		}
 		categories = append(categories, category)
 	}
+
 	return categories, nil
 }
 
