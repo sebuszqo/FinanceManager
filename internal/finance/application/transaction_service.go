@@ -9,7 +9,7 @@ import (
 type CategoryServiceInterface interface {
 	DoesPredefinedCategoryExist(categoryID int) (bool, error)
 	DoesUserCategoryExist(categoryID int, userID string) (bool, error)
-	GetAllPredefinedCategories() ([]domain.PredefinedCategory, error)
+	GetAllPredefinedCategories(categoryType string) ([]domain.PredefinedCategory, error)
 	GetAllUserCategories(userID string) ([]domain.UserCategory, error)
 }
 
@@ -51,7 +51,7 @@ func (s *PersonalTransactionService) CreateTransaction(transaction domain.Person
 }
 
 func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []domain.PersonalTransaction) error {
-	predefinedCategories, err := s.categoryService.GetAllPredefinedCategories()
+	predefinedCategories, err := s.categoryService.GetAllPredefinedCategories("")
 	if err != nil {
 		return err
 	}
