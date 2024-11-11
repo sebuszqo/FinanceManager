@@ -14,6 +14,7 @@ type PersonalTransactionRepository interface {
 	Update(transaction PersonalTransaction) error
 	SaveWithTransaction(transaction PersonalTransaction, tx *sql.Tx) error
 	BeginTransaction() (*sql.Tx, error)
+	GetTransactionsInDateRange(startDate, endDate time.Time) ([]PersonalTransaction, error)
 }
 
 type PersonalTransaction struct {

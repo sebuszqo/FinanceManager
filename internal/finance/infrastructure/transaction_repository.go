@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"database/sql"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
+	"time"
 )
 
 type PersonalTransactionRepository struct {
@@ -55,6 +56,29 @@ func (r *PersonalTransactionRepository) SaveWithTransaction(transaction domain.P
 		transaction.Type, transaction.Date, transaction.Description, transaction.PaymentMethodID, transaction.PaymentSourceID,
 	)
 	return err
+}
+
+func (r *PersonalTransactionRepository) GetTransactionsInDateRange(startDate, endDate time.Time) ([]domain.PersonalTransaction, error) {
+	rows, err := r.db.Query(`
+			SELECT id, amount, date, type
+			FROM personal_transactions
+			WHERE date >= $1 AND date <= $2
+			ORDER BY date
+		`, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var transactions []domain.PersonalTransaction
+	for rows.Next() {
+		var transaction domain.PersonalTransaction
+		if err := rows.Scan(&transaction.ID, &transaction.Amount, &transaction.Date, &transaction.Type); err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, transaction)
+	}
+	return transactions, nil
 }
 
 func (r *PersonalTransactionRepository) FindByID(transactionID int) (*domain.PersonalTransaction, error) {
