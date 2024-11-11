@@ -200,6 +200,9 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("POST /api/protected/finance/transactions/bulk",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransactionsBulk)))
 
+	protectedRoutes.Handle("GET /api/protected/transactions/summary",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.GetTransactionSummary)))
+
 	protectedRoutes.Handle("GET /api/protected/finance/categories",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financeCategoriesHandler.GetCategories)))
 
