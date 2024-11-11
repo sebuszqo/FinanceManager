@@ -120,8 +120,8 @@ func (a *assetRepository) findByPortfolioID(ctx context.Context, portfolioID uui
 // Repository layer function for inserting a new asset into the database
 func (a *assetRepository) createAsset(ctx context.Context, asset *Asset) error {
 	query := `
-        INSERT INTO assets (id, portfolio_id, name, ticker, asset_type_id, coupon_rate, maturity_date, face_value, dividend_yield, accumulation, currency, exchange, interest_accrued, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        INSERT INTO assets (id, portfolio_id, name, ticker, asset_type_id, coupon_rate, current_value, maturity_date, face_value, dividend_yield, accumulation, currency, exchange, interest_accrued, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     `
 
 	_, err := a.db.ExecContext(ctx, query,
@@ -131,6 +131,7 @@ func (a *assetRepository) createAsset(ctx context.Context, asset *Asset) error {
 		asset.Ticker,
 		asset.AssetTypeID,
 		asset.CouponRate,
+		asset.CurrentValue,
 		asset.MaturityDate,
 		asset.FaceValue,
 		asset.DividendYield,

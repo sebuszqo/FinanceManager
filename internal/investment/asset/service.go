@@ -39,10 +39,6 @@ type MarketDataService interface {
 	VerifyTicker(ticker, exchange, currency string) (*models.VerifiedTicker, error)
 }
 
-type Client interface {
-	FetchBatchPrices(ctx context.Context, tickers []string) (map[string]float64, error)
-}
-
 type TransactionService interface {
 	GetAllTransactions(ctx context.Context, assetID uuid.UUID) ([]models.Transaction, error)
 }
@@ -166,6 +162,10 @@ func (s *service) CreateAsset(ctx context.Context, asset *Asset) error {
 			asset.Name = verifiedTicker.Name
 			asset.Currency = verifiedTicker.Currency
 			asset.Exchange = verifiedTicker.Exchange
+		}
+		currentPrice, err := s.instrumentService.GetInstrumentPrice(ctx, asset.Ticker)
+		if err == nil {
+			asset.CurrentValue = currentPrice
 		}
 	}
 
