@@ -61,7 +61,8 @@ func (s *service) importInstrumentDTOs(ctx context.Context, dtos *[]models.Instr
 		case "stock":
 			assetTypeID = 1
 		case "etf":
-			assetTypeID = 2
+			fmt.Println("etf?")
+			assetTypeID = 3
 		default:
 			fmt.Println("Wrong type of instrument. skipping")
 			continue
