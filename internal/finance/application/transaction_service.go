@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
+	"math"
+	"time"
 )
 
 type CategoryServiceInterface interface {
@@ -20,6 +22,120 @@ type PersonalTransactionService struct {
 
 func NewPersonalTransactionService(repo domain.PersonalTransactionRepository, categoryService CategoryServiceInterface) *PersonalTransactionService {
 	return &PersonalTransactionService{repo: repo, categoryService: categoryService}
+}
+
+type TransactionSummary struct {
+	Year         int
+	IncomeTotal  float64
+	ExpenseTotal float64
+	Months       map[string]MonthSummary
+}
+
+type MonthSummary struct {
+	IncomeTotal  float64
+	ExpenseTotal float64
+	Weeks        []WeekSummary
+}
+
+type WeekSummary struct {
+	Week         int
+	IncomeTotal  float64
+	ExpenseTotal float64
+}
+
+func (s *PersonalTransactionService) GetTransactionSummary(startDate, endDate time.Time) (map[int]TransactionSummary, error) {
+	transactions, err := s.repo.GetTransactionsInDateRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	summary := make(map[int]TransactionSummary)
+
+	for _, transaction := range transactions {
+		year := transaction.Date.Year()
+		month := transaction.Date.Month().String()
+		_, week := transaction.Date.ISOWeek()
+
+		if _, exists := summary[year]; !exists {
+			summary[year] = TransactionSummary{
+				Year:         year,
+				Months:       make(map[string]MonthSummary),
+				IncomeTotal:  0,
+				ExpenseTotal: 0,
+			}
+		}
+
+		yearSummary := summary[year]
+
+		if _, exists := yearSummary.Months[month]; !exists {
+			yearSummary.Months[month] = MonthSummary{
+				IncomeTotal:  0,
+				ExpenseTotal: 0,
+				Weeks:        []WeekSummary{},
+			}
+		}
+
+		monthSummary := yearSummary.Months[month]
+
+		if transaction.Type == "income" {
+			yearSummary.IncomeTotal += transaction.Amount
+			monthSummary.IncomeTotal += transaction.Amount
+		} else if transaction.Type == "expense" {
+			yearSummary.ExpenseTotal += transaction.Amount
+			monthSummary.ExpenseTotal += transaction.Amount
+		}
+
+		found := false
+		for i, weekSummary := range monthSummary.Weeks {
+			if weekSummary.Week == week {
+				if transaction.Type == "income" {
+					monthSummary.Weeks[i].IncomeTotal += transaction.Amount
+				} else if transaction.Type == "expense" {
+					monthSummary.Weeks[i].ExpenseTotal += transaction.Amount
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			weekSummary := WeekSummary{
+				Week: week,
+			}
+			if transaction.Type == "income" {
+				weekSummary.IncomeTotal = transaction.Amount
+			} else if transaction.Type == "expense" {
+				weekSummary.ExpenseTotal = transaction.Amount
+			}
+			monthSummary.Weeks = append(monthSummary.Weeks, weekSummary)
+		}
+
+		yearSummary.Months[month] = monthSummary
+		summary[year] = yearSummary
+	}
+
+	for year, yearSummary := range summary {
+		yearSummary.IncomeTotal = roundToTwoDecimalPlaces(yearSummary.IncomeTotal)
+		yearSummary.ExpenseTotal = roundToTwoDecimalPlaces(yearSummary.ExpenseTotal)
+
+		for month, monthSummary := range yearSummary.Months {
+			monthSummary.IncomeTotal = roundToTwoDecimalPlaces(monthSummary.IncomeTotal)
+			monthSummary.ExpenseTotal = roundToTwoDecimalPlaces(monthSummary.ExpenseTotal)
+
+			for i, weekSummary := range monthSummary.Weeks {
+				weekSummary.IncomeTotal = roundToTwoDecimalPlaces(weekSummary.IncomeTotal)
+				weekSummary.ExpenseTotal = roundToTwoDecimalPlaces(weekSummary.ExpenseTotal)
+				monthSummary.Weeks[i] = weekSummary
+			}
+			yearSummary.Months[month] = monthSummary
+		}
+		summary[year] = yearSummary
+	}
+
+	return summary, nil
+}
+
+func roundToTwoDecimalPlaces(value float64) float64 {
+	return math.Round(value*100) / 100
 }
 
 func (s *PersonalTransactionService) CreateTransaction(transaction domain.PersonalTransaction) error {
