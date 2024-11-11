@@ -1,8 +1,8 @@
 package domain
 
 type PaymentMethod struct {
-	ID   int
-	Name string
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 type PaymentSource struct {
@@ -14,6 +14,6 @@ type PaymentSource struct {
 }
 
 type PaymentRepository interface {
-	FindAllMethods() ([]PaymentMethod, error)
+	FindAllPaymentMethods() ([]PaymentMethod, error)
 	FindUserSources(userID string) ([]PaymentSource, error)
 }
