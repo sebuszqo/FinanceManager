@@ -3,9 +3,11 @@ package interfaces
 import (
 	"encoding/json"
 	"errors"
+	"github.com/sebuszqo/FinanceManager/internal/finance/application"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
 	"net/http"
+	"time"
 )
 
 type TransactionServiceInterface interface {
@@ -14,6 +16,7 @@ type TransactionServiceInterface interface {
 	GetUserTransactions(userID string) ([]domain.PersonalTransaction, error)
 	UpdateTransaction(transaction domain.PersonalTransaction) error
 	DeleteTransaction(transactionID int) error
+	GetTransactionSummary(startDate, endDate time.Time) (map[int]application.TransactionSummary, error)
 }
 
 type PersonalTransactionHandler struct {
@@ -106,7 +109,47 @@ func (h *PersonalTransactionHandler) GetUserTransactions(w http.ResponseWriter, 
 	}
 
 	h.respondJSON(w, http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"data":   transactions,
+		"status":  "success",
+		"message": "Transactions retrieved successfully.",
+		"data":    transactions,
+	})
+}
+
+func (h *PersonalTransactionHandler) GetTransactionSummary(w http.ResponseWriter, r *http.Request) {
+	startDateStr := r.URL.Query().Get("start_date")
+	endDateStr := r.URL.Query().Get("end_date")
+
+	var startDate, endDate time.Time
+	var err error
+
+	if startDateStr == "" {
+		startDate = time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+	} else {
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			h.respondError(w, http.StatusBadRequest, "Invalid start date format")
+			return
+		}
+	}
+
+	if endDateStr == "" {
+		endDate = time.Now()
+	} else {
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			h.respondError(w, http.StatusBadRequest, "Invalid end date format")
+			return
+		}
+	}
+	summary, err := h.service.GetTransactionSummary(startDate, endDate)
+	if err != nil {
+		http.Error(w, "Failed to retrieve transaction summary", http.StatusInternalServerError)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "Transactions summary retrieved successfully.",
+		"data":    summary,
 	})
 }
