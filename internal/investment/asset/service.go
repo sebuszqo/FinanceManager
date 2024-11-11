@@ -390,7 +390,7 @@ func (s *service) UpdateAssetPricing(ctx context.Context) error {
 
 			assetType, exists := s.assetTypeCache[a.AssetTypeID]
 			if !exists {
-				log.Printf("Asset type not know for AssetTypeID: %s", a.AssetTypeID)
+				log.Printf("Asset type not know for AssetTypeID: %v", a.AssetTypeID)
 				return
 			}
 
