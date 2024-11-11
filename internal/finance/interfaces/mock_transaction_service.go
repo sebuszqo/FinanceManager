@@ -1,11 +1,18 @@
 package interfaces
 
 import (
+	"github.com/sebuszqo/FinanceManager/internal/finance/application"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
+	"time"
 )
 
 type MockTransactionService struct{}
+
+func (m *MockTransactionService) GetTransactionSummary(startDate, endDate time.Time) (map[int]application.TransactionSummary, error) {
+	//TODO implement me
+	panic("implement me")
+}
 
 func (m *MockTransactionService) CreateTransaction(transaction domain.PersonalTransaction) error {
 	//TODO implement me
