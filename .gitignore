@@ -35,3 +35,4 @@ internal/email/client_credentials.json
 .env.docker
 build-errors.log
 finance_manager
+/.idea
