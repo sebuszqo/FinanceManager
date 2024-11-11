@@ -43,5 +43,9 @@ func (h *CategoryHandler) GetCategories(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.respondJSON(w, http.StatusOK, categories)
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status":     "success",
+		"message":    "Categories retrieved successfully.",
+		"categories": categories,
+	})
 }

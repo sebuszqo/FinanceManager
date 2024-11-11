@@ -1,9 +1,9 @@
 package domain
 
 type PredefinedCategory struct {
-	ID   int
-	Name string
-	Type string // "income" lub "expense"
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"` // "income" or "expense"
 }
 
 type UserCategory struct {
