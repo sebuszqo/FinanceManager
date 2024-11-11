@@ -19,7 +19,7 @@ var (
 )
 
 const defaultJWTRefreshDuration = 720 * time.Hour
-const defaultJWTDuration = 1 * time.Hour
+const defaultJWTDuration = 10 * time.Minute
 
 type JWTManagerInterface interface {
 	GenerateAccessJWT(user string, duration time.Duration) (string, error)

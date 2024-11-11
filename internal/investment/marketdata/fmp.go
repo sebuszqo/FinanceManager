@@ -59,7 +59,7 @@ func (c *FinancialModelingPrepClient) VerifyTicker(ticker, exchange, currency st
 				Ticker:    tickerEntry.Symbol,
 				Name:      tickerEntry.Name,
 				AssetType: "",
-				Currency:  currency,
+				Currency:  tickerEntry.Currency,
 				Exchange:  exchange,
 			}
 			return &verifiedTicker, nil

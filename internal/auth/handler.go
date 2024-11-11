@@ -104,6 +104,7 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Secure:   false,
 		SameSite: http.SameSiteNoneMode,
 		Path:     "/api/refresh/token",
+		Expires:  time.Now().Add(defaultJWTRefreshDuration),
 		// Optional: Domain: "yourdomain.com",
 	})
 
@@ -137,7 +138,6 @@ func (s *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	})
 
 	respondJSON(w, http.StatusOK, "Logout successful")
-	//http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (s *Handler) HandleRegisterTwoFactor(w http.ResponseWriter, r *http.Request) {

@@ -14,7 +14,6 @@ import (
 type EmailOrLogin string
 
 const (
-	bcryptCost          = 12
 	google2FAAuthMethod = "google_authenticator"
 	email2FAAuthMethod  = "email"
 	defaultCodeTimeout  = 2
@@ -198,7 +197,7 @@ func (s *service) Login(emailOrLogin, password string) (*user.User, string, stri
 		fmt.Println("error during JWT generation")
 		return nil, "", "", ErrInternalError
 	}
-	refreshToken, err := s.jwtManager.GenerateRefreshJWT(existingUser.ID, existingUser.HashToken, defaultJWTDuration)
+	refreshToken, err := s.jwtManager.GenerateRefreshJWT(existingUser.ID, existingUser.HashToken, defaultJWTRefreshDuration)
 	if err != nil {
 		fmt.Println("error during refresh token generation")
 		return nil, "", "", ErrInternalError
