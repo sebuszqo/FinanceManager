@@ -66,9 +66,10 @@ type Server struct {
 	investmentsHandler          *investments.InvestmentHandler
 	personalTransactionsHandler *interfaces.PersonalTransactionHandler
 	financeCategoriesHandler    *interfaces.CategoryHandler
+	financePaymentHandler       *interfaces.PaymentHandler
 }
 
-func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler, personalTransactionsHandler *interfaces.PersonalTransactionHandler, financeCategoriesHandler *interfaces.CategoryHandler) *Server {
+func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler *user.Handler, investmentHandler *investments.InvestmentHandler, instrumentHandler instrument.Handler, personalTransactionsHandler *interfaces.PersonalTransactionHandler, financeCategoriesHandler *interfaces.CategoryHandler, financePaymentHandler *interfaces.PaymentHandler) *Server {
 	return &Server{
 		authHandler:                 authHandler,
 		userHandler:                 userHandler,
@@ -77,6 +78,7 @@ func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler 
 		instrumentHandler:           instrumentHandler,
 		personalTransactionsHandler: personalTransactionsHandler,
 		financeCategoriesHandler:    financeCategoriesHandler,
+		financePaymentHandler:       financePaymentHandler,
 		router:                      http.NewServeMux(),
 	}
 }
@@ -201,6 +203,9 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("GET /api/protected/finance/categories",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financeCategoriesHandler.GetCategories)))
 
+	protectedRoutes.Handle("GET /api/protected/finance/payment/methods",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financePaymentHandler.GetPaymentMethods)))
+
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
 	refreshTokenRoutes.Handle("PUT /api/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
@@ -280,7 +285,11 @@ func main() {
 
 	financeCategoriesHandler := interfaces.NewCategoryHandler(categoryService, respondJSON, respondError)
 
-	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler, personalTransactionHandler, financeCategoriesHandler)
+	financePaymentRepository := infrastructure.NewPaymentRepository(dbService.DB)
+	financePaymentService := application.NewPaymentService(financePaymentRepository)
+	financePaymentHandler := interfaces.NewPaymentHandler(financePaymentService, respondJSON, respondError)
+
+	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler, personalTransactionHandler, financeCategoriesHandler, financePaymentHandler)
 
 	server.RegisterRoutes()
 
