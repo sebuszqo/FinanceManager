@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
-	"math"
 	"time"
 )
 
@@ -113,36 +112,17 @@ func (s *PersonalTransactionService) GetTransactionSummary(startDate, endDate ti
 		summary[year] = yearSummary
 	}
 
-	for year, yearSummary := range summary {
-		yearSummary.IncomeTotal = roundToTwoDecimalPlaces(yearSummary.IncomeTotal)
-		yearSummary.ExpenseTotal = roundToTwoDecimalPlaces(yearSummary.ExpenseTotal)
-
-		for month, monthSummary := range yearSummary.Months {
-			monthSummary.IncomeTotal = roundToTwoDecimalPlaces(monthSummary.IncomeTotal)
-			monthSummary.ExpenseTotal = roundToTwoDecimalPlaces(monthSummary.ExpenseTotal)
-
-			for i, weekSummary := range monthSummary.Weeks {
-				weekSummary.IncomeTotal = roundToTwoDecimalPlaces(weekSummary.IncomeTotal)
-				weekSummary.ExpenseTotal = roundToTwoDecimalPlaces(weekSummary.ExpenseTotal)
-				monthSummary.Weeks[i] = weekSummary
-			}
-			yearSummary.Months[month] = monthSummary
-		}
-		summary[year] = yearSummary
-	}
-
 	return summary, nil
 }
 
-func roundToTwoDecimalPlaces(value float64) float64 {
-	return math.Round(value*100) / 100
-}
-
 func (s *PersonalTransactionService) CreateTransaction(transaction domain.PersonalTransaction) error {
+
+	transaction.RoundToTwoDecimalPlaces()
 	if err := transaction.Validate(); err != nil {
 		return err
 	}
-
+	fmt.Println("1", transaction.PredefinedCategoryID)
+	fmt.Println("2", *transaction.PredefinedCategoryID)
 	if transaction.PredefinedCategoryID != nil {
 		exists, err := s.categoryService.DoesPredefinedCategoryExist(*transaction.PredefinedCategoryID)
 		if err != nil {
@@ -166,13 +146,13 @@ func (s *PersonalTransactionService) CreateTransaction(transaction domain.Person
 	return s.repo.Save(transaction)
 }
 
-func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []domain.PersonalTransaction) error {
+func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []domain.PersonalTransaction, userID string) error {
 	predefinedCategories, err := s.categoryService.GetAllPredefinedCategories("")
 	if err != nil {
 		return err
 	}
 
-	userCategories, err := s.categoryService.GetAllUserCategories(transactions[0].UserID)
+	userCategories, err := s.categoryService.GetAllUserCategories(userID)
 	if err != nil {
 		return err
 	}
@@ -204,6 +184,7 @@ func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []domai
 	}()
 
 	for i, transaction := range transactions {
+		transaction.UserID = userID
 		if err := transaction.Validate(); err != nil {
 			return financeErrors.NewIndexedValidationError(i+1, err.Error())
 		}

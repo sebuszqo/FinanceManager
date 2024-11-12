@@ -3,6 +3,7 @@ package interfaces
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/finance/application"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
@@ -12,7 +13,7 @@ import (
 
 type TransactionServiceInterface interface {
 	CreateTransaction(transaction domain.PersonalTransaction) error
-	CreateTransactionsBulk(transactions []domain.PersonalTransaction) error
+	CreateTransactionsBulk(transactions []domain.PersonalTransaction, userID string) error
 	GetUserTransactions(userID string) ([]domain.PersonalTransaction, error)
 	UpdateTransaction(transaction domain.PersonalTransaction) error
 	DeleteTransaction(transactionID int) error
@@ -41,16 +42,23 @@ func NewPersonalTransactionHandler(
 }
 
 func (h *PersonalTransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 	var transaction domain.PersonalTransaction
 	if err := json.NewDecoder(r.Body).Decode(&transaction); err != nil {
 		h.respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
+	transaction.UserID = userID
 	if err := h.service.CreateTransaction(transaction); err != nil {
 		if financeErrors.IsValidationError(err) {
 			h.respondError(w, http.StatusBadRequest, err.Error())
 		}
+		fmt.Println("Error during transaction creation:", err.Error())
 		h.respondError(w, http.StatusInternalServerError, "Failed to create transaction")
 		return
 	}
@@ -63,6 +71,11 @@ func (h *PersonalTransactionHandler) CreateTransaction(w http.ResponseWriter, r 
 }
 
 func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 	var req struct {
 		Transactions []domain.PersonalTransaction `json:"transactions"`
 	}
@@ -75,7 +88,7 @@ func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWrite
 		return
 	}
 
-	if err := h.service.CreateTransactionsBulk(req.Transactions); err != nil {
+	if err := h.service.CreateTransactionsBulk(req.Transactions, userID); err != nil {
 		if financeErrors.IsValidationErrors(err) {
 			var validationErrors *financeErrors.ValidationErrors
 			errors.As(err, &validationErrors)
@@ -86,6 +99,7 @@ func (h *PersonalTransactionHandler) CreateTransactionsBulk(w http.ResponseWrite
 			h.respondJSON(w, http.StatusBadRequest, map[string][]string{"errors": errorMessages})
 			return
 		}
+		fmt.Println("Error during transaction creation:", err.Error())
 		h.respondError(w, http.StatusInternalServerError, "Failed to create transaction")
 		return
 	}

@@ -280,6 +280,7 @@ func (h *InvestmentHandler) CreateAsset(w http.ResponseWriter, r *http.Request) 
 	assetRequest := &createAssetRequest{}
 	if err := json.NewDecoder(r.Body).Decode(assetRequest); err != nil {
 		h.respondError(w, http.StatusBadRequest, "Invalid request payload")
+		return
 	}
 
 	if assetRequest.Name == "" || assetRequest.Ticker == "" || assetRequest.AssetTypeID == 0 || assetRequest.Currency == "" {

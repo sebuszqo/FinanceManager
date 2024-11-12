@@ -3,6 +3,7 @@ package domain
 import (
 	"database/sql"
 	"github.com/sebuszqo/FinanceManager/internal/finance/errors"
+	"math"
 	"time"
 )
 
@@ -28,6 +29,10 @@ type PersonalTransaction struct {
 	UserCategoryID       *int
 	PaymentMethodID      *int
 	PaymentSourceID      *int
+}
+
+func (t *PersonalTransaction) RoundToTwoDecimalPlaces() {
+	t.Amount = math.Round(t.Amount*100) / 100
 }
 
 func (t *PersonalTransaction) Validate() error {

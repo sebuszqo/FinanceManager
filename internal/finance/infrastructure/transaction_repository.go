@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	"time"
 )
@@ -15,6 +16,8 @@ func NewPersonalTransactionRepository(db *sql.DB) *PersonalTransactionRepository
 }
 
 func (r *PersonalTransactionRepository) Save(transaction domain.PersonalTransaction) error {
+	fmt.Println("USER ID TO", transaction.UserID)
+	fmt.Println("CATEGORY ID", transaction.PredefinedCategoryID)
 	_, err := r.db.Exec(
 		`INSERT INTO personal_transactions 
         (predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id) 
@@ -49,6 +52,7 @@ func (r *PersonalTransactionRepository) BeginTransaction() (*sql.Tx, error) {
 }
 
 func (r *PersonalTransactionRepository) SaveWithTransaction(transaction domain.PersonalTransaction, tx *sql.Tx) error {
+	fmt.Println("USER ID TO", transaction.UserID)
 	_, err := tx.Exec(
 		`INSERT INTO personal_transactions (predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,

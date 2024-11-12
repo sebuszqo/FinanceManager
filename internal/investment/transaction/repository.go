@@ -25,7 +25,7 @@ func NewTransactionRepository(db *sql.DB) TransactionRepository {
 func (r *transactionRepository) getTransactionTypes(ctx context.Context) ([]TransactionType, error) {
 	var types []TransactionType
 
-	query := `SELECT id, type FROM asset_types`
+	query := `SELECT id, type FROM transaction_types`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
