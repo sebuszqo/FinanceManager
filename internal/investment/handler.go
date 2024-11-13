@@ -20,7 +20,7 @@ type InvestmentHandler struct {
 	assetService       assets.Service
 	transactionService transactions.Service
 	respondJSON        func(w http.ResponseWriter, status int, payload interface{})
-	respondError       func(w http.ResponseWriter, status int, message string)
+	respondError       func(w http.ResponseWriter, status int, message string, errors ...[]string)
 }
 
 func NewInvestmentHandler(
@@ -28,7 +28,7 @@ func NewInvestmentHandler(
 	assetsService assets.Service,
 	transactionsService transactions.Service,
 	respondJSON func(w http.ResponseWriter, status int, payload interface{}),
-	respondError func(w http.ResponseWriter, status int, message string),
+	respondError func(w http.ResponseWriter, status int, message string, errors ...[]string),
 ) *InvestmentHandler {
 	return &InvestmentHandler{
 		portfolioService:   portfolioService,
