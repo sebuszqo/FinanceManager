@@ -6,7 +6,7 @@ import (
 )
 
 type PaymentServiceInterface interface {
-	ListPaymentMethods() ([]domain.PaymentMethod, error)
+	GetAllPaymentMethods() ([]domain.PaymentMethod, error)
 }
 
 type PaymentHandler struct {
@@ -31,7 +31,7 @@ func NewPaymentHandler(
 }
 
 func (h *PaymentHandler) GetPaymentMethods(w http.ResponseWriter, _ *http.Request) {
-	methods, err := h.service.ListPaymentMethods()
+	methods, err := h.service.GetAllPaymentMethods()
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "Failed to retrieve payment methods")
 		return
