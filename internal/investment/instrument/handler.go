@@ -12,11 +12,11 @@ type Handler interface {
 type handler struct {
 	instrumentService Service
 	respondJSON       func(w http.ResponseWriter, status int, payload interface{})
-	respondError      func(w http.ResponseWriter, status int, message string)
+	respondError      func(w http.ResponseWriter, status int, message string, errors ...[]string)
 }
 
 func NewInstrumentHandler(instrumentService Service, respondJSON func(w http.ResponseWriter, status int, payload interface{}),
-	respondError func(w http.ResponseWriter, status int, message string)) Handler {
+	respondError func(w http.ResponseWriter, status int, message string, errors ...[]string)) Handler {
 	return &handler{
 		instrumentService: instrumentService,
 		respondJSON:       respondJSON,
