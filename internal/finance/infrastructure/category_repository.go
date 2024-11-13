@@ -10,13 +10,23 @@ type CategoryRepository struct {
 }
 
 func (r *CategoryRepository) DoesPredefinedCategoryExistByID(categoryID int) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM predefined_categories WHERE id = $1)"
+	err := r.db.QueryRow(query, categoryID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 func (r *CategoryRepository) DoesUserCategoryExistByID(categoryID int, userID string) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM user_categories WHERE id = $1 AND user_id = $2)"
+	err := r.db.QueryRow(query, categoryID, userID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 func NewCategoryRepository(db *sql.DB) *CategoryRepository {
