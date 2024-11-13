@@ -1,25 +1,57 @@
 package interfaces
 
 import (
+	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/finance/application"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
+	"github.com/stretchr/testify/mock"
 	"time"
 )
 
-type MockTransactionService struct{}
+type MockTransactionService struct {
+	mock.Mock
+}
 
-func (m *MockTransactionService) GetTransactionSummary(startDate, endDate time.Time) (map[int]application.TransactionSummary, error) {
+func (m *MockTransactionService) GetTransactionSummaryByCategory(userID string, startDate, endDate time.Time, transactionType string) ([]domain.TransactionByCategorySummary, error) {
+	summary := []domain.TransactionByCategorySummary{
+		{
+			CategoryID:   1,
+			CategoryName: "Food",
+			TotalAmount:  150.00,
+		},
+		{
+			CategoryID:   2,
+			CategoryName: "Transport",
+			TotalAmount:  50.00,
+		},
+	}
+
+	if transactionType == "income" {
+		return summary, nil
+	} else if transactionType == "expense" {
+		return summary, nil
+	}
+
+	return nil, fmt.Errorf("invalid transaction type: %s", transactionType)
+}
+
+func (m *MockTransactionService) GetUserTransactions(userID string, transactionType string, startDate time.Time, endDate time.Time, limit int, page int) ([]domain.PersonalTransaction, error) {
+	args := m.Called(userID, transactionType)
+
+	transactions := args.Get(0)
+	if transactions != nil {
+		return transactions.([]domain.PersonalTransaction), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *MockTransactionService) GetTransactionSummary(userID string, startDate time.Time, endDate time.Time) (map[int]application.TransactionSummary, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m *MockTransactionService) CreateTransaction(transaction domain.PersonalTransaction) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (m *MockTransactionService) GetUserTransactions(userID string) ([]domain.PersonalTransaction, error) {
+func (m *MockTransactionService) CreateTransaction(transaction *domain.PersonalTransaction) error {
 	//TODO implement me
 	panic("implement me")
 }
@@ -44,7 +76,7 @@ var userCategoryMap = map[int]struct{}{
 	20: {},
 }
 
-func (m *MockTransactionService) CreateTransactionsBulk(transactions []domain.PersonalTransaction) error {
+func (m *MockTransactionService) CreateTransactionsBulk(transactions []*domain.PersonalTransaction, userID string) error {
 	var validationErrors = &financeErrors.ValidationErrors{}
 
 	for i, transaction := range transactions {
@@ -53,12 +85,12 @@ func (m *MockTransactionService) CreateTransactionsBulk(transactions []domain.Pe
 			continue
 		}
 
-		if transaction.PredefinedCategoryID != nil {
-			if _, exists := predefinedCategoryMap[*transaction.PredefinedCategoryID]; !exists {
-				validationErrors.Add(financeErrors.NewIndexedValidationError(i+1, financeErrors.ErrInvalidPredefinedCategory.Error()))
-				continue
-			}
-		} else if transaction.UserCategoryID != nil {
+		if _, exists := predefinedCategoryMap[transaction.PredefinedCategoryID]; !exists {
+			validationErrors.Add(financeErrors.NewIndexedValidationError(i+1, financeErrors.ErrInvalidPredefinedCategory.Error()))
+			continue
+		}
+
+		if transaction.UserCategoryID != nil {
 			if _, exists := userCategoryMap[*transaction.UserCategoryID]; !exists {
 				validationErrors.Add(financeErrors.NewIndexedValidationError(i+1, financeErrors.ErrInvalidUserCategory.Error()))
 				continue

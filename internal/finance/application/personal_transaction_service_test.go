@@ -45,7 +45,7 @@ func TestGetTransactionSummary_MultipleYearsMonthsWeeks(t *testing.T) {
 	startDate, _ := time.Parse("2006-01-02", "2021-01-01")
 	endDate, _ := time.Parse("2006-01-02", "2023-12-31")
 
-	summary, err := service.GetTransactionSummary(startDate, endDate)
+	summary, err := service.GetTransactionSummary("test-user-id", startDate, endDate)
 	assert.NoError(t, err)
 
 	year2023 := summary[2023]

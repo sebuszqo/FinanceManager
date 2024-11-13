@@ -20,7 +20,7 @@ func TestGetCategories_ValidTypeIncome(t *testing.T) {
 		},
 	}
 	handler := NewCategoryHandler(mockService, respondJSON, respondError)
-	handler.GetCategories(w, req)
+	handler.GetPredefinedCategories(w, req)
 
 	res := w.Result()
 	defer res.Body.Close()
@@ -54,7 +54,7 @@ func TestGetCategories_InvalidType(t *testing.T) {
 
 	mockService := &MockCategoryService{}
 	handler := NewCategoryHandler(mockService, respondJSON, respondError)
-	handler.GetCategories(w, req)
+	handler.GetPredefinedCategories(w, req)
 
 	res := w.Result()
 	defer res.Body.Close()
@@ -76,7 +76,7 @@ func TestGetCategories_ErrorFromService(t *testing.T) {
 		shouldFail: true,
 	}
 	handler := NewCategoryHandler(mockService, respondJSON, respondError)
-	handler.GetCategories(w, req)
+	handler.GetPredefinedCategories(w, req)
 
 	res := w.Result()
 	defer res.Body.Close()
