@@ -9,26 +9,6 @@ type CategoryRepository struct {
 	db *sql.DB
 }
 
-func (r *CategoryRepository) DoesPredefinedCategoryExistByID(categoryID int) (bool, error) {
-	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM predefined_categories WHERE id = $1)"
-	err := r.db.QueryRow(query, categoryID).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
-}
-
-func (r *CategoryRepository) DoesUserCategoryExistByID(categoryID int, userID string) (bool, error) {
-	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM user_categories WHERE id = $1 AND user_id = $2)"
-	err := r.db.QueryRow(query, categoryID, userID).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
-}
-
 func NewCategoryRepository(db *sql.DB) *CategoryRepository {
 	return &CategoryRepository{db: db}
 }
@@ -89,4 +69,24 @@ func (r *CategoryRepository) FindUserCategories(userID string) ([]domain.UserCat
 		categories = append(categories, category)
 	}
 	return categories, nil
+}
+
+func (r *CategoryRepository) DoesPredefinedCategoryExistByID(categoryID int) (bool, error) {
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM predefined_categories WHERE id = $1)"
+	err := r.db.QueryRow(query, categoryID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (r *CategoryRepository) DoesUserCategoryExistByID(categoryID int, userID string) (bool, error) {
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM user_categories WHERE id = $1 AND user_id = $2)"
+	err := r.db.QueryRow(query, categoryID, userID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
