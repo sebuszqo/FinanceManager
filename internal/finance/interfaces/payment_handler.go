@@ -12,13 +12,13 @@ type PaymentServiceInterface interface {
 type PaymentHandler struct {
 	service      PaymentServiceInterface
 	respondJSON  func(w http.ResponseWriter, status int, payload interface{})
-	respondError func(w http.ResponseWriter, status int, message string)
+	respondError func(w http.ResponseWriter, status int, message string, errors ...[]string)
 }
 
 func NewPaymentHandler(
 	service PaymentServiceInterface,
 	respondJSON func(w http.ResponseWriter, status int, payload interface{}),
-	respondError func(w http.ResponseWriter, status int, message string),
+	respondError func(w http.ResponseWriter, status int, message string, errors ...[]string),
 ) *PaymentHandler {
 	if service == nil || respondJSON == nil || respondError == nil {
 		panic("Service and response functions must not be nil")
