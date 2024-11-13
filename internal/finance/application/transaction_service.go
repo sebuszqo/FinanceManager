@@ -16,15 +16,20 @@ type CategoryServiceInterface interface {
 }
 
 type PaymentServiceInterface interface {
+	GetAllPaymentMethods() ([]domain.PaymentMethod, error)
+	GetUserPaymentSources(userID string) ([]domain.PaymentSource, error)
+	DoesPaymentMethodExistByID(methodID int) (bool, error)
+	DoesUserPaymentSourceExistByID(sourceID int, userID string) (bool, error)
 }
 
 type PersonalTransactionService struct {
 	repo            domain.PersonalTransactionRepository
 	categoryService CategoryServiceInterface
+	paymentService  PaymentServiceInterface
 }
 
-func NewPersonalTransactionService(repo domain.PersonalTransactionRepository, categoryService CategoryServiceInterface) *PersonalTransactionService {
-	return &PersonalTransactionService{repo: repo, categoryService: categoryService}
+func NewPersonalTransactionService(repo domain.PersonalTransactionRepository, categoryService CategoryServiceInterface, paymentService PaymentServiceInterface) *PersonalTransactionService {
+	return &PersonalTransactionService{repo: repo, categoryService: categoryService, paymentService: paymentService}
 }
 
 type TransactionSummary struct {
@@ -143,6 +148,23 @@ func (s *PersonalTransactionService) CreateTransaction(transaction *domain.Perso
 		}
 	}
 
+	exists, err = s.paymentService.DoesPaymentMethodExistByID(transaction.PaymentMethodID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return financeErrors.ErrInvalidPaymentMethod
+	}
+	if transaction.PaymentSourceID != nil {
+		exists, err = s.paymentService.DoesUserPaymentSourceExistByID(*transaction.PaymentSourceID, transaction.UserID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return financeErrors.ErrInvalidUserCategory
+		}
+	}
+
 	return s.repo.Save(*transaction)
 }
 
@@ -157,14 +179,34 @@ func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []*doma
 		return err
 	}
 
-	predefinedCategoryMap := make(map[int]struct{})
-	userCategoryMap := make(map[int]struct{})
+	predefinedCategoryMap := make(map[int]bool)
+	userCategoryMap := make(map[int]bool)
 
 	for _, category := range predefinedCategories {
-		predefinedCategoryMap[category.ID] = struct{}{}
+		predefinedCategoryMap[category.ID] = true
 	}
 	for _, category := range userCategories {
-		userCategoryMap[category.ID] = struct{}{}
+		userCategoryMap[category.ID] = true
+	}
+
+	paymentMethods, err := s.paymentService.GetAllPaymentMethods()
+	if err != nil {
+		return err
+	}
+
+	paymentUserSource, err := s.paymentService.GetUserPaymentSources(userID)
+	if err != nil {
+		return err
+	}
+
+	paymentMethodsMap := make(map[int]bool)
+	paymentSourceMap := make(map[int]bool)
+
+	for _, method := range paymentMethods {
+		paymentMethodsMap[method.ID] = true
+	}
+	for _, source := range paymentUserSource {
+		paymentSourceMap[source.ID] = true
 	}
 
 	tx, err := s.repo.BeginTransaction()
@@ -202,18 +244,29 @@ func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []*doma
 				continue
 			}
 		}
-
+		if _, exists := paymentMethodsMap[transaction.PaymentMethodID]; !exists {
+			validationErrors.Add(financeErrors.NewIndexedValidationError(i+1, financeErrors.ErrInvalidPaymentMethod.Error()))
+			continue
+		}
+		if transaction.PaymentSourceID != nil {
+			if _, exists := paymentSourceMap[*transaction.PaymentSourceID]; !exists {
+				validationErrors.Add(financeErrors.NewIndexedValidationError(i+1, financeErrors.ErrInvalidPaymentSource.Error()))
+				continue
+			}
+		}
 		if err := s.repo.SaveWithTransaction(*transaction, tx); err != nil {
 			return fmt.Errorf("database error at transaction %d: %w", i+1, err)
 		}
+
 	}
 
 	if len(validationErrors.Errors) > 0 {
+		tx.Rollback()
 		return validationErrors
 	}
-
 	return nil
 }
+
 func (s *PersonalTransactionService) GetUserTransactions(userID, transactionType string, startDate, endDate time.Time, limit, page int) ([]domain.PersonalTransaction, error) {
 	transactions, err := s.repo.GetTransactionsByType(userID, transactionType, startDate, endDate, limit, page)
 	if err != nil {
@@ -239,8 +292,5 @@ func (s *PersonalTransactionService) GetTransactionSummaryByCategory(userID stri
 		return nil, err
 	}
 
-	if transactions == nil {
-		return []domain.TransactionByCategorySummary{}, nil
-	}
 	return transactions, nil
 }
