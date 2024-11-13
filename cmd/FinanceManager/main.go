@@ -48,12 +48,18 @@ func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	json.NewEncoder(w).Encode(payload)
 }
 
-func respondError(w http.ResponseWriter, status int, message string) {
-	respondJSON(w, status, map[string]interface{}{
+func respondError(w http.ResponseWriter, status int, message string, errors ...[]string) {
+	payload := map[string]interface{}{
 		"status":  "error",
 		"message": message,
 		"code":    status,
-	})
+	}
+
+	if len(errors) > 0 && len(errors[0]) > 0 {
+		payload["errors"] = errors[0]
+	}
+
+	respondJSON(w, status, payload)
 }
 
 type Server struct {
@@ -200,14 +206,26 @@ func (s *Server) RegisterRoutes() {
 	protectedRoutes.Handle("POST /api/protected/finance/transactions/bulk",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.CreateTransactionsBulk)))
 
-	protectedRoutes.Handle("GET /api/protected/transactions/summary",
+	protectedRoutes.Handle("GET /api/protected/finance/transactions/summary",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.GetTransactionSummary)))
 
-	protectedRoutes.Handle("GET /api/protected/finance/categories",
-		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financeCategoriesHandler.GetCategories)))
+	protectedRoutes.Handle("GET /api/protected/finance/transactions/summary/categories",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.GetTransactionSummaryByCategory)))
+
+	protectedRoutes.Handle("GET /api/protected/finance/transactions",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.personalTransactionsHandler.GetUserTransactions)))
+
+	protectedRoutes.Handle("GET /api/protected/finance/categories/predefined",
+		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financeCategoriesHandler.GetPredefinedCategories)))
+
+	//protectedRoutes.Handle("GET /api/protected/finance/categories/user",
+	//	s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financeCategoriesHandler.GetUserCategories)))
 
 	protectedRoutes.Handle("GET /api/protected/finance/payment/methods",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financePaymentHandler.GetPaymentMethods)))
+
+	//protectedRoutes.Handle("GET /api/protected/finance/payment/sources",
+	//	s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.financePaymentHandler.GetUserPaymentSources)))
 
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
