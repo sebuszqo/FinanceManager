@@ -30,6 +30,8 @@ func NewIndexedValidationError(index int, msg string) error {
 
 var ErrInvalidUserCategory = NewValidationError("Invalid personal user category ID")
 var ErrInvalidPredefinedCategory = NewValidationError("Invalid predefined category ID")
+var ErrInvalidPaymentSource = NewValidationError("Invalid payment source ID")
+var ErrInvalidPaymentMethod = NewValidationError("Invalid payment method ID")
 
 type ValidationErrors struct {
 	Errors []error
