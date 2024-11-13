@@ -12,13 +12,13 @@ type CategoryServiceInterface interface {
 type CategoryHandler struct {
 	service      CategoryServiceInterface
 	respondJSON  func(w http.ResponseWriter, status int, payload interface{})
-	respondError func(w http.ResponseWriter, status int, message string)
+	respondError func(w http.ResponseWriter, status int, message string, errors ...[]string)
 }
 
 func NewCategoryHandler(
 	service CategoryServiceInterface,
 	respondJSON func(w http.ResponseWriter, status int, payload interface{}),
-	respondError func(w http.ResponseWriter, status int, message string),
+	respondError func(w http.ResponseWriter, status int, message string, errors ...[]string),
 ) *CategoryHandler {
 	if service == nil || respondJSON == nil || respondError == nil {
 		panic("Service and response functions must not be nil")
@@ -30,7 +30,7 @@ func NewCategoryHandler(
 	}
 }
 
-func (h *CategoryHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) GetPredefinedCategories(w http.ResponseWriter, r *http.Request) {
 	categoryType := r.URL.Query().Get("type")
 	if categoryType != "" && categoryType != "income" && categoryType != "expense" {
 		h.respondError(w, http.StatusBadRequest, "Invalid category type")
