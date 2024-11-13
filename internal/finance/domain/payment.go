@@ -14,6 +14,8 @@ type PaymentSource struct {
 }
 
 type PaymentRepository interface {
-	FindAllPaymentMethods() ([]PaymentMethod, error)
-	FindUserSources(userID string) ([]PaymentSource, error)
+	GetAllPaymentMethods() ([]PaymentMethod, error)
+	GetUserPaymentSources(userID string) ([]PaymentSource, error)
+	PaymentMethodExists(methodID int) (bool, error)
+	UserPaymentSourceExists(sourceID int, userID string) (bool, error)
 }
