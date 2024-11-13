@@ -301,15 +301,14 @@ func main() {
 
 	categoryService := application.NewCategoryService(categoryRepository)
 
-	personalTransactionService := application.NewPersonalTransactionService(personalTransactionRepository, categoryService)
-	personalTransactionHandler := interfaces.NewPersonalTransactionHandler(personalTransactionService, respondJSON, respondError)
-
 	financeCategoriesHandler := interfaces.NewCategoryHandler(categoryService, respondJSON, respondError)
 
 	financePaymentRepository := infrastructure.NewPaymentRepository(dbService.DB)
 	financePaymentService := application.NewPaymentService(financePaymentRepository)
 	financePaymentHandler := interfaces.NewPaymentHandler(financePaymentService, respondJSON, respondError)
 
+	personalTransactionService := application.NewPersonalTransactionService(personalTransactionRepository, categoryService, financePaymentService)
+	personalTransactionHandler := interfaces.NewPersonalTransactionHandler(personalTransactionService, respondJSON, respondError)
 	server := NewServer(authHandler, authService, userHandler, investmentsHandler, instrumentHandler, personalTransactionHandler, financeCategoriesHandler, financePaymentHandler)
 
 	server.RegisterRoutes()
