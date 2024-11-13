@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	"time"
 )
@@ -16,20 +15,39 @@ func NewPersonalTransactionRepository(db *sql.DB) *PersonalTransactionRepository
 }
 
 func (r *PersonalTransactionRepository) Save(transaction domain.PersonalTransaction) error {
-	fmt.Println("USER ID TO", transaction.UserID)
-	fmt.Println("CATEGORY ID", transaction.PredefinedCategoryID)
 	_, err := r.db.Exec(
 		`INSERT INTO personal_transactions 
-        (predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		transaction.PredefinedCategoryID, transaction.UserCategoryID, transaction.UserID, transaction.Amount,
+        (id, predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		transaction.ID, transaction.PredefinedCategoryID, transaction.UserCategoryID, transaction.UserID, transaction.Amount,
 		transaction.Type, transaction.Date, transaction.Description, transaction.PaymentMethodID, transaction.PaymentSourceID,
 	)
 	return err
 }
 
-func (r *PersonalTransactionRepository) FindByUser(userID string) ([]domain.PersonalTransaction, error) {
-	rows, err := r.db.Query(`SELECT id, predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id FROM personal_transactions WHERE user_id = $1`, userID)
+func (r *PersonalTransactionRepository) GetTransactionsByType(userID string, transactionType string, startDate time.Time, endDate time.Time, limit int, page int) ([]domain.PersonalTransaction, error) {
+	query := `
+		SELECT id, user_id, amount, type, date, description, predefined_category_id, user_category_id, payment_method_id, payment_source_id 
+		FROM personal_transactions 
+		WHERE user_id = $1 AND date >= $2 AND date <= $3
+		ORDER BY date DESC LIMIT $4 OFFSET $5
+		`
+
+	args := []interface{}{userID, startDate, endDate}
+
+	if transactionType != "" {
+		query = `
+		SELECT id, user_id, amount, type, date, description, predefined_category_id, user_category_id, payment_method_id, payment_source_id 
+		FROM personal_transactions 
+		WHERE user_id = $1 AND date >= $2 AND date <= $3 AND type = $4
+		ORDER BY date DESC LIMIT $5 OFFSET $6
+		`
+		args = append(args, transactionType)
+	}
+
+	args = append(args, limit, (page-1)*limit)
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -38,12 +56,42 @@ func (r *PersonalTransactionRepository) FindByUser(userID string) ([]domain.Pers
 	var transactions []domain.PersonalTransaction
 	for rows.Next() {
 		var transaction domain.PersonalTransaction
-		if err := rows.Scan(&transaction.ID, &transaction.PredefinedCategoryID, &transaction.UserCategoryID, &transaction.UserID,
-			&transaction.Amount, &transaction.Type, &transaction.Date, &transaction.Description, &transaction.PaymentMethodID, &transaction.PaymentSourceID); err != nil {
+
+		var userCategoryID sql.NullInt32
+		var paymentSourceID sql.NullInt32
+
+		if err := rows.Scan(
+			&transaction.ID,
+			&transaction.UserID,
+			&transaction.Amount,
+			&transaction.Type,
+			&transaction.Date,
+			&transaction.Description,
+			&transaction.PredefinedCategoryID,
+			&userCategoryID,
+			&transaction.PaymentMethodID,
+			&paymentSourceID,
+		); err != nil {
 			return nil, err
 		}
+
+		if userCategoryID.Valid {
+			value := int(userCategoryID.Int32)
+			transaction.UserCategoryID = &value
+		} else {
+			transaction.UserCategoryID = nil
+		}
+
+		if paymentSourceID.Valid {
+			value := int(paymentSourceID.Int32)
+			transaction.PaymentSourceID = &value
+		} else {
+			transaction.PaymentSourceID = nil
+		}
+
 		transactions = append(transactions, transaction)
 	}
+
 	return transactions, nil
 }
 
@@ -52,23 +100,22 @@ func (r *PersonalTransactionRepository) BeginTransaction() (*sql.Tx, error) {
 }
 
 func (r *PersonalTransactionRepository) SaveWithTransaction(transaction domain.PersonalTransaction, tx *sql.Tx) error {
-	fmt.Println("USER ID TO", transaction.UserID)
 	_, err := tx.Exec(
-		`INSERT INTO personal_transactions (predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		transaction.PredefinedCategoryID, transaction.UserCategoryID, transaction.UserID, transaction.Amount,
+		`INSERT INTO personal_transactions (id, predefined_category_id, user_category_id, user_id, amount, type, date, description, payment_method_id, payment_source_id) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		transaction.ID, transaction.PredefinedCategoryID, transaction.UserCategoryID, transaction.UserID, transaction.Amount,
 		transaction.Type, transaction.Date, transaction.Description, transaction.PaymentMethodID, transaction.PaymentSourceID,
 	)
 	return err
 }
 
-func (r *PersonalTransactionRepository) GetTransactionsInDateRange(startDate, endDate time.Time) ([]domain.PersonalTransaction, error) {
+func (r *PersonalTransactionRepository) GetTransactionsInDateRange(userID string, startDate, endDate time.Time) ([]domain.PersonalTransaction, error) {
 	rows, err := r.db.Query(`
 			SELECT id, amount, date, type
 			FROM personal_transactions
-			WHERE date >= $1 AND date <= $2
+			WHERE user_id = $1 AND date >= $2 AND date <= $3
 			ORDER BY date
-		`, startDate, endDate)
+		`, userID, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +130,55 @@ func (r *PersonalTransactionRepository) GetTransactionsInDateRange(startDate, en
 		transactions = append(transactions, transaction)
 	}
 	return transactions, nil
+}
+
+func (r *PersonalTransactionRepository) GetTransactionSummaryByCategory(userID string, startDate, endDate time.Time, transactionType string) ([]domain.TransactionByCategorySummary, error) {
+	query := `
+	SELECT c.name AS category_name, 
+           t.predefined_category_id AS category_id, 
+           SUM(t.amount) AS total_amount
+	FROM personal_transactions t
+	LEFT JOIN predefined_categories c ON t.predefined_category_id = c.id
+	WHERE t.user_id = $1
+	AND t.date >= $2
+	AND t.date <= $3
+	GROUP BY category_id, category_name ORDER BY total_amount DESC
+	 `
+
+	args := []interface{}{userID, startDate, endDate}
+
+	if transactionType != "" {
+		query = `
+	SELECT c.name AS category_name, 
+           t.predefined_category_id AS category_id, 
+           SUM(t.amount) AS total_amount
+	FROM personal_transactions t
+	LEFT JOIN predefined_categories c ON t.predefined_category_id = c.id
+	WHERE t.user_id = $1
+	AND t.date >= $2
+	AND t.date <= $3
+	AND t.type = $4
+	GROUP BY category_id, category_name ORDER BY total_amount DESC
+	 `
+		args = append(args, transactionType)
+	}
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var summaries []domain.TransactionByCategorySummary
+	for rows.Next() {
+		var summary domain.TransactionByCategorySummary
+		if err := rows.Scan(&summary.CategoryName, &summary.CategoryID, &summary.TotalAmount); err != nil {
+			return nil, err
+		}
+		summaries = append(summaries, summary)
+	}
+
+	return summaries, nil
 }
 
 func (r *PersonalTransactionRepository) FindByID(transactionID int) (*domain.PersonalTransaction, error) {
