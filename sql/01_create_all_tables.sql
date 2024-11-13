@@ -240,7 +240,7 @@ CREATE TABLE payment_sources (
 
 
 CREATE TABLE personal_transactions (
-                                       id SERIAL PRIMARY KEY,
+                                       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                                        predefined_category_id INT REFERENCES predefined_categories(id),
                                        user_category_id INT REFERENCES user_categories(id),
                                        user_id UUID REFERENCES users(id) NOT NULL,
@@ -260,3 +260,4 @@ CREATE TABLE personal_transactions (
 
 
 
+-- delete from personal_transactions where '1' = '1'
