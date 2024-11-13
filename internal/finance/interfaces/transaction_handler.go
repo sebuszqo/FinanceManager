@@ -284,11 +284,9 @@ func (h *PersonalTransactionHandler) GetTransactionSummaryByCategory(w http.Resp
 		h.respondError(w, http.StatusInternalServerError, "Failed to retrieve category summary")
 		return
 	}
-
 	if summary == nil {
 		summary = []domain.TransactionByCategorySummary{}
 	}
-
 	h.respondJSON(w, http.StatusOK, map[string]interface{}{
 		"status":  "success",
 		"message": "Category summary retrieved successfully.",
