@@ -22,7 +22,6 @@ import (
 	"github.com/sebuszqo/FinanceManager/internal/user"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"time"
 )
@@ -337,10 +336,6 @@ func main() {
 		log.Fatalf("Scheduler didn't start, stoping the app ...")
 	}
 	loggingMiddleware := loggingMiddleware(http.HandlerFunc(server.router.ServeHTTP))
-	log.Println("Starting perf on port 6060...")
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
 	log.Println("Server starting on port 8080...")
 	if err := http.ListenAndServe(":8080", loggingMiddleware); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
