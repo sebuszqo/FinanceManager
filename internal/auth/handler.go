@@ -103,7 +103,7 @@ func (s *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   false,
 		SameSite: http.SameSiteNoneMode,
-		Path:     "/api/refresh/token",
+		Path:     "/api/auth/refresh/token",
 		Expires:  time.Now().Add(defaultJWTRefreshDuration),
 		// Optional: Domain: "yourdomain.com",
 	})
@@ -129,7 +129,7 @@ func (s *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
-		Path:     "/api/refresh/token",
+		Path:     "/api/auth/refresh/token",
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
@@ -337,7 +337,7 @@ func (s *Handler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   false,
 		SameSite: http.SameSiteNoneMode,
-		Path:     "/api/refresh/token",
+		Path:     "/api/auth/refresh/token",
 		// Opcjonalnie: Domain: "yourdomain.com",
 	})
 

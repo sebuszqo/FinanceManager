@@ -118,85 +118,85 @@ func (s *Server) handleReady(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) RegisterRoutes() {
 	// Public routes
 	publicRoutes := http.NewServeMux()
-	publicRoutes.Handle("POST /api/register", http.HandlerFunc(s.userHandler.HandleRegister))
-	publicRoutes.Handle("POST /api/email/verify", http.HandlerFunc(s.userHandler.HandleVerifyEmail))
+	publicRoutes.Handle("POST /api/user/register", http.HandlerFunc(s.userHandler.HandleRegister))
+	publicRoutes.Handle("POST /api/user/email/verify", http.HandlerFunc(s.userHandler.HandleVerifyEmail))
 	publicRoutes.Handle("POST /api/auth/login", http.HandlerFunc(s.authHandler.HandleLogin))
 	publicRoutes.Handle("POST /api/auth/logout", http.HandlerFunc(s.authHandler.HandleLogout))
 	publicRoutes.Handle("POST /api/auth/2fa/verify", http.HandlerFunc(s.authHandler.HandleVerifyTwoFactor))
-	publicRoutes.Handle("POST /api/password-reset/request", http.HandlerFunc(s.authHandler.RequestPasswordResetHandler))
-	publicRoutes.Handle("POST /api/password-reset/confirm", http.HandlerFunc(s.authHandler.ResetPasswordHandler))
+	publicRoutes.Handle("POST /api/auth/password-reset/request", http.HandlerFunc(s.authHandler.RequestPasswordResetHandler))
+	publicRoutes.Handle("POST /api/auth/password-reset/confirm", http.HandlerFunc(s.authHandler.ResetPasswordHandler))
 	publicRoutes.Handle("GET /api/ready", http.HandlerFunc(s.handleReady))
 
 	// Protected routes (using JWT Access Token Middleware)
 	protectedRoutes := http.NewServeMux()
 	// email changes request and confirm endpoint
-	protectedRoutes.Handle("POST /api/protected/email/change-request", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleRequestEmailChange)))
-	protectedRoutes.Handle("POST /api/protected/email/change-confirm", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleConfirmEmailChange)))
+	protectedRoutes.Handle("POST /api/protected/user/email/change-request", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleRequestEmailChange)))
+	protectedRoutes.Handle("POST /api/protected/user/email/change-confirm", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleConfirmEmailChange)))
 
 	// get user data endpoint
-	protectedRoutes.Handle("GET /api/protected/profile", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleGetUserProfile)))
+	protectedRoutes.Handle("GET /api/protected/user/profile", s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleGetUserProfile)))
 
-	protectedRoutes.Handle("POST /api/protected/2fa/register",
+	protectedRoutes.Handle("POST /api/protected/auth/2fa/register",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRegisterTwoFactor)))
 
-	protectedRoutes.Handle("POST /api/protected/2fa/verify-registration",
+	protectedRoutes.Handle("POST /api/protected/auth/2fa/verify-registration",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleVerifyTwoFactorCode)))
 
-	protectedRoutes.Handle("POST /api/protected/2fa/request-email-code",
+	protectedRoutes.Handle("POST /api/protected/auth/2fa/request-email-code",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleRequestEmail2FACode)))
 
-	protectedRoutes.Handle("DELETE /api/protected/2fa/disable",
+	protectedRoutes.Handle("DELETE /api/protected/auth/2fa/disable",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.authHandler.HandleDisableTwoFactor)))
 
-	protectedRoutes.Handle("POST /api/protected/change-password",
+	protectedRoutes.Handle("POST /api/protected/user/change-password",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.userHandler.HandleChangePassword)))
 
 	// PORTFOLIOS API
-	protectedRoutes.Handle("POST /api/protected/portfolios",
+	protectedRoutes.Handle("POST /api/protected/investments/portfolios",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.CreatePortfolio)))
 
-	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}",
+	protectedRoutes.Handle("GET /api/protected/investments/portfolios/{portfolioID}",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetPortfolio), "portfolioID")))
 
-	protectedRoutes.Handle("PUT /api/protected/portfolios/{portfolioID}",
+	protectedRoutes.Handle("PUT /api/protected/investments/portfolios/{portfolioID}",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.UpdatePortfolio), "portfolioID")))
 
-	protectedRoutes.Handle("DELETE /api/protected/portfolios/{portfolioID}",
+	protectedRoutes.Handle("DELETE /api/protected/investments/portfolios/{portfolioID}",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.DeletePortfolio), "portfolioID")))
 
-	protectedRoutes.Handle("GET /api/protected/portfolios",
+	protectedRoutes.Handle("GET /api/protected/investments/portfolios",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetAllPortfolios)))
 
 	// ASSET API
-	protectedRoutes.Handle("GET /api/protected/asset_types",
+	protectedRoutes.Handle("GET /api/protected/investments/asset_types",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetAssetTypes)))
 
-	protectedRoutes.Handle("DELETE /api/protected/portfolios/{portfolioID}/assets/{assetID}",
+	protectedRoutes.Handle("DELETE /api/protected/investments/portfolios/{portfolioID}/assets/{assetID}",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.DeleteAsset), "portfolioID", "assetID")))
 
-	protectedRoutes.Handle("POST /api/protected/portfolios/{portfolioID}/assets",
+	protectedRoutes.Handle("POST /api/protected/investments/portfolios/{portfolioID}/assets",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.CreateAsset), "portfolioID")))
 
-	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}/assets",
+	protectedRoutes.Handle("GET /api/protected/investments/portfolios/{portfolioID}/assets",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetAllAssets), "portfolioID")))
 
 	//"PUT /api/protected/portfolios/{portfolioID}/assets/{assetID}"
 
 	// TRANSACTION API
-	protectedRoutes.Handle("GET /api/protected/transaction_types",
+	protectedRoutes.Handle("GET /api/protected/investments/transaction_types",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.investmentsHandler.GetTransactionTypes)))
 
-	protectedRoutes.Handle("POST /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions",
+	protectedRoutes.Handle("POST /api/protected/investments/portfolios/{portfolioID}/assets/{assetID}/transactions",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.CreateTransaction), "portfolioID", "assetID")))
 
-	protectedRoutes.Handle("GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions",
+	protectedRoutes.Handle("GET /api/protected/investments/portfolios/{portfolioID}/assets/{assetID}/transactions",
 		s.authService.JWTAccessTokenMiddleware()(s.investmentsHandler.ValidateInvestmentPathParamsMiddleware(http.HandlerFunc(s.investmentsHandler.GetAllTransactions), "portfolioID", "assetID")))
 
 	//GET /api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//PUT	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	//DELETE	/api/protected/portfolios/{portfolioID}/assets/{assetID}/transactions/{transactionID}
 	// INSTRUMENTS
-	protectedRoutes.Handle("GET /api/protected/instruments/search",
+	protectedRoutes.Handle("GET /api/protected/investments/instruments/search",
 		s.authService.JWTAccessTokenMiddleware()(http.HandlerFunc(s.instrumentHandler.SearchInstruments)))
 
 	// FINANCE API
@@ -229,7 +229,7 @@ func (s *Server) RegisterRoutes() {
 
 	// Refresh token routes
 	refreshTokenRoutes := http.NewServeMux()
-	refreshTokenRoutes.Handle("PUT /api/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
+	refreshTokenRoutes.Handle("PUT /api/auth/refresh/token", s.authService.JWTRefreshTokenMiddleware()(http.HandlerFunc(s.authHandler.RefreshAccessToken)))
 
 	// Main router
 	mainRouter := http.NewServeMux()
@@ -237,7 +237,7 @@ func (s *Server) RegisterRoutes() {
 	// Combine public, protected, and refresh routes with distinct paths
 	mainRouter.Handle("/api/", publicRoutes)
 	mainRouter.Handle("/api/protected/", protectedRoutes)
-	mainRouter.Handle("/api/refresh/", refreshTokenRoutes)
+	mainRouter.Handle("/api/auth/refresh/", refreshTokenRoutes)
 	mainRouter.Handle("/", http.HandlerFunc(notFoundHandler))
 
 	s.router = mainRouter
