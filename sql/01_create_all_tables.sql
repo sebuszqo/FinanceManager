@@ -231,10 +231,10 @@ INSERT INTO payment_methods (name) VALUES
 
 CREATE TABLE payment_sources (
                                  id SERIAL PRIMARY KEY,
-                                 user_id UUID REFERENCES users(id) NOT NULL,           -- ID użytkownika, do którego należy źródło płatności
-                                 payment_method_id INT REFERENCES payment_methods(id) NOT NULL, -- Sposób płatności, np. karta, gotówka, BLIK
-                                 name VARCHAR(50) NOT NULL,                           -- Nazwa źródła, np. „karta Visa”, „konto bankowe w PKO”
-                                 details JSONB                                        -- Opcjonalne szczegóły, np. numer konta dla kont bankowych
+                                 user_id UUID REFERENCES users(id) NOT NULL,
+                                 payment_method_id INT REFERENCES payment_methods(id) NOT NULL,
+                                 name VARCHAR(50) NOT NULL,
+                                 details JSONB
 );
 
 
@@ -247,6 +247,7 @@ CREATE TABLE personal_transactions (
                                        amount DECIMAL(10, 2) NOT NULL,
                                        type VARCHAR(10) CHECK (type IN ('income', 'expense')) NOT NULL,
                                        date DATE NOT NULL,
+                                       name VARCHAR(50) NOT NULL,
                                        description TEXT,
                                        payment_method_id INT REFERENCES payment_methods(id),
                                        payment_source_id INT REFERENCES payment_sources(id),
