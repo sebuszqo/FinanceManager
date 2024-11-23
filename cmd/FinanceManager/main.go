@@ -44,7 +44,10 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(payload)
+	err := json.NewEncoder(w).Encode(payload)
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func respondError(w http.ResponseWriter, status int, message string, errors ...[]string) {
@@ -91,7 +94,10 @@ func NewServer(authHandler *auth.Handler, authService auth.Service, userHandler 
 func notFoundHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(Response{Message: "Path not found"})
+	err := json.NewEncoder(w).Encode(Response{Message: "Path not found"})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func checkConfiguration() error {
@@ -109,9 +115,12 @@ func checkConfiguration() error {
 func (s *Server) handleReady(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	err := json.NewEncoder(w).Encode(map[string]string{
 		"status": "ready",
 	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (s *Server) RegisterRoutes() {
@@ -251,7 +260,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not initialize database: %v", err)
 	}
-	defer dbService.Close()
+	defer func() {
+		if err := dbService.Close(); err != nil {
+			log.Printf("Error while closing database: %v", err)
+		}
+	}()
 
 	err = godotenv.Load()
 	if err != nil {
@@ -336,8 +349,16 @@ func main() {
 		log.Fatalf("Scheduler didn't start, stoping the app ...")
 	}
 	loggingMiddleware := loggingMiddleware(http.HandlerFunc(server.router.ServeHTTP))
+	httpServer := &http.Server{
+		Addr:         ":8080",
+		Handler:      loggingMiddleware,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
 	log.Println("Server starting on port 8080...")
-	if err := http.ListenAndServe(":8080", loggingMiddleware); err != nil {
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
