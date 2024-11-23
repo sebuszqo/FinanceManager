@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/sebuszqo/FinanceManager/internal/investment/models"
+	"log"
 	"time"
 )
 
@@ -316,8 +317,10 @@ func (a *assetRepository) UpdateAssets(ctx context.Context, assets []Asset) erro
         WHERE id = $4
     `)
 	if err != nil {
-		tx.Rollback()
-		return err
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			log.Printf("Error during transaction rollback after prepare failure: %v", rollbackErr)
+		}
+		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
@@ -329,8 +332,10 @@ func (a *assetRepository) UpdateAssets(ctx context.Context, assets []Asset) erro
 			asset.ID,
 		)
 		if err != nil {
-			tx.Rollback()
-			return err
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				log.Printf("Error during transaction rollback after execution failure: %v", rollbackErr)
+			}
+			return fmt.Errorf("failed to execute statement for asset ID %d: %w", asset.ID, err)
 		}
 	}
 

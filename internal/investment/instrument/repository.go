@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/sebuszqo/FinanceManager/internal/investment/models"
+	"log"
 	"time"
 )
 
@@ -59,7 +60,9 @@ func (r *instrumentRepository) bulkInsertOrUpdate(ctx context.Context, instrumen
             updated_at = NOW();
     `)
 	if err != nil {
-		tx.Rollback()
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			log.Printf("Error during transaction rollback: %v", rollbackErr)
+		}
 		return err
 	}
 	defer stmt.Close()
@@ -75,12 +78,17 @@ func (r *instrumentRepository) bulkInsertOrUpdate(ctx context.Context, instrumen
 			instr.Currency,
 		)
 		if err != nil {
-			tx.Rollback()
+			safeRollback(tx)
 			return err
 		}
 	}
 
 	return tx.Commit()
+}
+func safeRollback(tx *sql.Tx) {
+	if err := tx.Rollback(); err != nil {
+		log.Printf("Error during transaction rollback: %v", err)
+	}
 }
 
 func (r *instrumentRepository) getPriceBySymbol(ctx context.Context, symbol string) (float64, error) {
