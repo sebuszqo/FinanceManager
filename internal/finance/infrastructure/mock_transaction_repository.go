@@ -10,6 +10,11 @@ type MockTransactionRepository struct {
 	Transactions []domain.PersonalTransaction
 }
 
+func (m *MockTransactionRepository) GetTransactionSummaryByPaymentMethod(userID string, startDate, endDate time.Time, transactionType string) ([]domain.TransactionByPaymentMethodSummary, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (m *MockTransactionRepository) GetTransactionSummaryByCategory(userID string, startDate, endDate time.Time, transactionType string) ([]domain.TransactionByCategorySummary, error) {
 	//TODO implement me
 	panic("implement me")

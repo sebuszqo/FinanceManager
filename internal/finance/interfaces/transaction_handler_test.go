@@ -22,10 +22,11 @@ func TestCreateTransactionsBulk_WithValidationError(t *testing.T) {
 
 	body, err := json.Marshal(map[string]interface{}{
 		"transactions": []domain.PersonalTransaction{
-			{Amount: -10, Type: "income"},                          // Invalid Amount
-			{Amount: 100, Type: "income", PredefinedCategoryID: 0}, // Invalid Category ID
-			{Amount: 50, Type: "income", PredefinedCategoryID: 3},  // Missing PaymentMethodID
-			{Amount: 60, Type: "invalid_type"},                     // Invalid Type
+			{Name: "Transaction number1", Amount: -10, Type: "income"},                          // Invalid Amount
+			{Name: "Transaction number2", Amount: 100, Type: "income", PredefinedCategoryID: 0}, // Invalid Category ID
+			{Name: "Transaction number3", Amount: 50, Type: "income", PredefinedCategoryID: 3},  // Missing PaymentMethodID
+			{Name: "Transaction number4", Amount: 60, Type: "invalid_type"},
+			{Amount: 10, Type: "income"},
 		},
 	})
 	assert.NoError(t, err)
@@ -53,6 +54,7 @@ func TestCreateTransactionsBulk_WithValidationError(t *testing.T) {
 			"Validation error at transaction 2: PredefinedCategoryID must be provided and must be greater than zero",
 			"Validation error at transaction 3: PaymentMethodID must be provided and must be greater than zero",
 			"Validation error at transaction 4: Type must be either 'income' or 'expense'",
+			"Validation error at transaction 5: Name should be between 0 and 50",
 		}
 
 		actualErrors := make([]string, len(errorsList))

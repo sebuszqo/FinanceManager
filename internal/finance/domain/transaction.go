@@ -17,15 +17,17 @@ type PersonalTransactionRepository interface {
 	BeginTransaction() (*sql.Tx, error)
 	GetTransactionsInDateRange(userID string, startDate, endDate time.Time) ([]PersonalTransaction, error)
 	GetTransactionSummaryByCategory(userID string, startDate, endDate time.Time, transactionType string) ([]TransactionByCategorySummary, error)
+	GetTransactionSummaryByPaymentMethod(userID string, startDate, endDate time.Time, transactionType string) ([]TransactionByPaymentMethodSummary, error)
 }
 
 type PersonalTransaction struct {
 	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
 	UserID               string    // user UUID
 	Amount               float64   `json:"amount"`
 	Type                 string    `json:"type"` // "income" lub "expense"
 	Date                 time.Time `json:"date"`
-	Description          string    `json:"description"`
+	Description          *string   `json:"description"`
 	PredefinedCategoryID int       `json:"predefined_category_id"`
 	UserCategoryID       *int      `json:"user_category_id"`
 	PaymentMethodID      int       `json:"payment_method_id"`
@@ -37,6 +39,10 @@ func (t *PersonalTransaction) RoundToTwoDecimalPlaces() {
 }
 
 func (t *PersonalTransaction) Validate() error {
+	if len(t.Name) <= 0 || len(t.Name) > 50 {
+		return errors.NewValidationError("Name should be between 0 and 50")
+	}
+
 	if t.Amount <= 0 {
 		return errors.NewValidationError("Amount must be greater than zero")
 	}
@@ -65,8 +71,8 @@ func (t *PersonalTransaction) Validate() error {
 		return errors.NewValidationError("Date is required")
 	}
 
-	if len(t.Description) > 200 {
-		return errors.NewValidationError("Description length must be less than or equal to 200 characters")
+	if t.Description != nil && (len(*t.Description) > 200 || len(*t.Description) <= 0) {
+		return errors.NewValidationError("Description if provided length must be less than or equal to 200 characters and greater than 0")
 	}
 
 	return nil
@@ -87,4 +93,10 @@ type TransactionByCategorySummary struct {
 	CategoryID   int     `json:"category_id"`
 	CategoryName string  `json:"category_name"`
 	TotalAmount  float64 `json:"total_amount"`
+}
+
+type TransactionByPaymentMethodSummary struct {
+	PaymentMethodID   int     `json:"payment_method_id"`
+	PaymentMethodName string  `json:"payment_method_name"`
+	TotalAmount       float64 `json:"total_amount"`
 }

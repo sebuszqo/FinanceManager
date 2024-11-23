@@ -40,7 +40,8 @@ func TestGetTransactionSummary_MultipleYearsMonthsWeeks(t *testing.T) {
 		},
 	}
 	categoryService := &MockCategoryService{}
-	service := NewPersonalTransactionService(repo, categoryService)
+	paymentService := &PaymentService{}
+	service := NewPersonalTransactionService(repo, categoryService, paymentService)
 
 	startDate, _ := time.Parse("2006-01-02", "2021-01-01")
 	endDate, _ := time.Parse("2006-01-02", "2023-12-31")

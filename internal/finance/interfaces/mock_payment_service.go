@@ -7,7 +7,7 @@ type MockPaymentService struct {
 	Err     error
 }
 
-func (m *MockPaymentService) ListPaymentMethods() ([]domain.PaymentMethod, error) {
+func (m *MockPaymentService) GetAllPaymentMethods() ([]domain.PaymentMethod, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
