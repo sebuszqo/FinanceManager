@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/investment/models"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -38,7 +39,11 @@ func (c *FinancialModelingPrepClient) VerifyTicker(ticker, exchange, currency st
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("error querying API: %s", resp.Status)
@@ -89,7 +94,11 @@ func (c *FinancialModelingPrepClient) FetchAllInstruments() (*[]models.Instrumen
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("error querying API: %s", resp.Status)
