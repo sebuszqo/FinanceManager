@@ -1,10 +1,12 @@
 package application
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/sebuszqo/FinanceManager/internal/finance/domain"
 	financeErrors "github.com/sebuszqo/FinanceManager/internal/finance/errors"
+	"log"
 	"time"
 )
 
@@ -216,10 +218,10 @@ func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []*doma
 	var validationErrors = &financeErrors.ValidationErrors{}
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			safeRollback(tx)
 			panic(p)
 		} else if err != nil {
-			tx.Rollback()
+			safeRollback(tx)
 		} else {
 			err = tx.Commit()
 		}
@@ -261,10 +263,15 @@ func (s *PersonalTransactionService) CreateTransactionsBulk(transactions []*doma
 	}
 
 	if len(validationErrors.Errors) > 0 {
-		tx.Rollback()
+		safeRollback(tx)
 		return validationErrors
 	}
 	return nil
+}
+func safeRollback(tx *sql.Tx) {
+	if err := tx.Rollback(); err != nil {
+		log.Printf("Error during transaction rollback: %v", err)
+	}
 }
 
 func (s *PersonalTransactionService) GetUserTransactions(userID, transactionType string, startDate, endDate time.Time, limit, page int) ([]domain.PersonalTransaction, error) {
