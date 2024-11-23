@@ -2,13 +2,18 @@ package interfaces
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(payload)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		log.Printf("JSON encoding error: %v", err)
+		return
+	}
 }
 
 func respondError(w http.ResponseWriter, status int, message string, errors ...[]string) {
