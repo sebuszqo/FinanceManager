@@ -2,9 +2,11 @@ package marketdata
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/sebuszqo/FinanceManager/internal/investment/models"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -25,8 +27,14 @@ func (c *FinancialModelingPrepClient) GetCurrentPrice(ticker string) (float64, e
 }
 
 func (c *FinancialModelingPrepClient) VerifyTicker(ticker, exchange, currency string) (*models.VerifiedTicker, error) {
-	url := fmt.Sprintf("https://financialmodelingprep.com/api/v3/search-ticker?query=%s&limit=1&exchange=%s&apikey=%s", ticker, exchange, c.apiKey)
-	resp, err := http.Get(url)
+	baseURL := "https://financialmodelingprep.com/api/v3/search-ticker"
+	params := fmt.Sprintf("?query=%s&limit=1&exchange=%s&apikey=%s", ticker, exchange, c.apiKey)
+	fullURL := baseURL + params
+	parsedURL, err := url.Parse(fullURL)
+	if err != nil {
+		return nil, errors.New("invalid URL")
+	}
+	resp, err := http.Get(parsedURL.String())
 	if err != nil {
 		return nil, err
 	}
