@@ -78,8 +78,14 @@ func (c *FinancialModelingPrepClient) VerifyTicker(ticker, exchange, currency st
 }
 
 func (c *FinancialModelingPrepClient) FetchAllInstruments() (*[]models.InstrumentDTO, error) {
-	url := fmt.Sprintf("https://financialmodelingprep.com/api/v3/stock/list?apikey=%s", c.apiKey)
-	resp, err := http.Get(url)
+	baseURL := "https://financialmodelingprep.com/api/v3/stock/list"
+	params := fmt.Sprintf("?&apikey=%s", c.apiKey)
+	fullURL := baseURL + params
+	parsedURL, err := url.Parse(fullURL)
+	if err != nil {
+		return nil, errors.New("invalid URL")
+	}
+	resp, err := http.Get(parsedURL.String())
 	if err != nil {
 		return nil, err
 	}
