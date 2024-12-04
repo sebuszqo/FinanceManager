@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "main" ]
 jobs:
-  tests:
+  gosec_job:
     runs-on: ubuntu-latest
     env:
       GO111MODULE: on
@@ -14,6 +14,6 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v3
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@v2
         with:
           args: ./...

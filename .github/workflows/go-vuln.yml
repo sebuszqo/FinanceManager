@@ -1,4 +1,4 @@
-name: Run go vuln check
+name: Run govulncheck
 
 on:
   push:
@@ -8,9 +8,10 @@ on:
 jobs:
   govulncheck_job:
     runs-on: ubuntu-latest
-    name: Run govulncheck
     steps:
-      - id: govulncheck
+      - name: Checkout Source
+        uses: actions/checkout@v3
+      - name: Run govulncheck
         uses: golang/govulncheck-action@v1
         with:
           go-version-input: 1.22
