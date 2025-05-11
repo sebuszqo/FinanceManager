@@ -1,5 +1,4 @@
 name: Run govulncheck
-
 on:
   push:
     branches: [ "main" ]
